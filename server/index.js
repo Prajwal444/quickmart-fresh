@@ -118,6 +118,74 @@ const sendEmailOtp = async ({ email, otp, name }) => {
   });
 };
 
+const sendOrderUpdateEmail = async ({ order, user, event, message }) => {
+  if (!mailer || !user?.email) {
+    return { sent: false, skipped: true };
+  }
+
+  const orderCode = String(order._id).slice(-6).toUpperCase();
+  const itemSummary = (order.items || [])
+    .map((item) => `${item.quantity} x ${item.name}`)
+    .join(", ");
+  const total = Number(order.total || 0).toLocaleString("en-IN", {
+    style: "currency",
+    currency: "INR",
+    maximumFractionDigits: 0,
+  });
+  const subject = `QuickMart Fresh order ${orderCode}: ${event}`;
+
+  try {
+    await mailer.sendMail({
+      from: process.env.SMTP_FROM || process.env.SMTP_USER,
+      to: user.email,
+      subject,
+      text: [
+        `Hi ${user.name || "there"},`,
+        "",
+        message || `Your order #${orderCode} is now ${order.status}.`,
+        "",
+        `Status: ${order.status}`,
+        `Total: ${total}`,
+        `Delivery slot: ${order.deliverySlot || "Arriving soon"}`,
+        itemSummary ? `Items: ${itemSummary}` : "",
+        "",
+        "Thanks for shopping with QuickMart Fresh.",
+      ]
+        .filter(Boolean)
+        .join("\n"),
+      html: `
+        <div style="font-family:Arial,sans-serif;line-height:1.5;color:#0f172a">
+          <h2 style="margin:0 0 12px">QuickMart Fresh order update</h2>
+          <p>Hi ${user.name || "there"},</p>
+          <p>${message || `Your order <strong>#${orderCode}</strong> is now <strong>${order.status}</strong>.`}</p>
+          <div style="border:1px solid #dbe7e0;border-radius:14px;padding:14px;background:#f8fffb">
+            <p><strong>Order:</strong> #${orderCode}</p>
+            <p><strong>Status:</strong> ${order.status}</p>
+            <p><strong>Total:</strong> ${total}</p>
+            <p><strong>Delivery slot:</strong> ${order.deliverySlot || "Arriving soon"}</p>
+            ${itemSummary ? `<p><strong>Items:</strong> ${itemSummary}</p>` : ""}
+          </div>
+          <p style="margin-top:16px">Thanks for shopping with QuickMart Fresh.</p>
+        </div>
+      `,
+    });
+    return { sent: true, skipped: false };
+  } catch (error) {
+    console.warn(`Order email failed for ${orderCode}: ${error.message}`);
+    return { sent: false, skipped: false, error: error.message };
+  }
+};
+
+const queueOrderUpdateEmail = ({ order, user, event, message }) => {
+  const emailStatus = { queued: Boolean(mailer && user?.email), skipped: !mailer || !user?.email };
+  if (!emailStatus.queued) return emailStatus;
+
+  sendOrderUpdateEmail({ order, user, event, message }).catch((error) => {
+    console.warn(`Order email queue failed: ${error.message}`);
+  });
+  return emailStatus;
+};
+
 app.use(cors({ origin: true, credentials: true }));
 app.use(cookieParser());
 app.use(express.json({ limit: "1mb" }));
@@ -1091,8 +1159,14 @@ app.post("/api/orders", auth, async (req, res) => {
     ].slice(0, 20),
   };
   await req.user.save();
+  const emailStatus = queueOrderUpdateEmail({
+    order,
+    user: req.user,
+    event: "Order placed",
+    message: `Your order #${String(order._id).slice(-6).toUpperCase()} has been placed and is being packed.`,
+  });
 
-  res.status(201).json({ order });
+  res.status(201).json({ order, emailStatus });
 });
 
 app.get("/api/orders", auth, async (req, res) => {
@@ -1124,7 +1198,13 @@ app.patch("/api/orders/:id/cancel", auth, async (req, res) => {
   order.refundStatus = order.paymentMode === "cod" ? "none" : "initiated";
   order.timeline = [...(order.timeline || []), { label: "Cancelled", time: "Now", done: true }];
   await order.save();
-  res.json({ order });
+  const emailStatus = queueOrderUpdateEmail({
+    order,
+    user: req.user.role === "admin" ? await User.findById(order.user) : req.user,
+    event: "Order cancelled",
+    message: `Your order #${String(order._id).slice(-6).toUpperCase()} has been cancelled.`,
+  });
+  res.json({ order, emailStatus });
 });
 
 app.patch("/api/orders/:id/modify", auth, async (req, res) => {
@@ -1169,7 +1249,13 @@ app.patch("/api/orders/:id/modify", auth, async (req, res) => {
     order.refundStatus = order.paymentMode === "cod" ? "none" : "initiated";
     order.timeline = [...(order.timeline || []), { label: "Cancelled", time: "Now", done: true }];
     await order.save();
-    return res.json({ order });
+    const emailStatus = queueOrderUpdateEmail({
+      order,
+      user: req.user.role === "admin" ? await User.findById(order.user) : req.user,
+      event: "Order cancelled",
+      message: `Your order #${String(order._id).slice(-6).toUpperCase()} was cancelled because all items were removed.`,
+    });
+    return res.json({ order, emailStatus });
   }
   const summary = priceSummary(order.items, order.notes?.coupon);
   Object.assign(order, {
@@ -1182,7 +1268,13 @@ app.patch("/api/orders/:id/modify", auth, async (req, res) => {
   });
   order.timeline = [...(order.timeline || []), { label: "Order modified", time: "Now", done: true }];
   await order.save();
-  res.json({ order });
+  const emailStatus = queueOrderUpdateEmail({
+    order,
+    user: req.user.role === "admin" ? await User.findById(order.user) : req.user,
+    event: "Order modified",
+    message: `Your order #${String(order._id).slice(-6).toUpperCase()} was modified. The updated total is ${Number(order.total || 0).toLocaleString("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 })}.`,
+  });
+  res.json({ order, emailStatus });
 });
 
 app.patch("/api/orders/:id/replacement", auth, async (req, res) => {
@@ -1201,7 +1293,13 @@ app.patch("/api/orders/:id/replacement", auth, async (req, res) => {
   };
   order.timeline = [...(order.timeline || []), { label: "Replacement preference updated", time: "Now", done: true }];
   await order.save();
-  res.json({ order });
+  const emailStatus = queueOrderUpdateEmail({
+    order,
+    user: req.user.role === "admin" ? await User.findById(order.user) : req.user,
+    event: "Replacement preference updated",
+    message: `Your replacement preference for order #${String(order._id).slice(-6).toUpperCase()} was updated.`,
+  });
+  res.json({ order, emailStatus });
 });
 
 app.patch("/api/orders/:id/rating", auth, async (req, res) => {
@@ -1217,7 +1315,13 @@ app.patch("/api/orders/:id/rating", auth, async (req, res) => {
     ratedAt: new Date(),
   };
   await order.save();
-  res.json({ order });
+  const emailStatus = queueOrderUpdateEmail({
+    order,
+    user: req.user.role === "admin" ? await User.findById(order.user) : req.user,
+    event: "Delivery rating received",
+    message: `Thanks for rating order #${String(order._id).slice(-6).toUpperCase()} with ${order.deliveryRating} stars.`,
+  });
+  res.json({ order, emailStatus });
 });
 
 app.get("/api/orders/:id/invoice", auth, async (req, res) => {
@@ -1257,7 +1361,13 @@ app.patch("/api/orders/:id/support", auth, async (req, res) => {
     supportIssue: req.body.issue || "Support requested",
   };
   await order.save();
-  res.json({ order });
+  const emailStatus = queueOrderUpdateEmail({
+    order,
+    user: req.user.role === "admin" ? await User.findById(order.user) : req.user,
+    event: "Support request received",
+    message: `We received your support request for order #${String(order._id).slice(-6).toUpperCase()}.`,
+  });
+  res.json({ order, emailStatus });
 });
 
 app.patch("/api/me/wallet", auth, async (req, res) => {
@@ -1800,8 +1910,14 @@ app.post("/api/admin/users/:id/orders", auth, adminOnly, async (req, res) => {
   if (orderConsumesStock(order.status)) {
     await reserveOrderStock(order);
   }
+  const emailStatus = queueOrderUpdateEmail({
+    order,
+    user,
+    event: "Order created",
+    message: `An order #${String(order._id).slice(-6).toUpperCase()} was created for your account by QuickMart support.`,
+  });
 
-  res.status(201).json({ order });
+  res.status(201).json({ order, emailStatus });
 });
 
 app.patch("/api/admin/orders/:id", auth, adminOnly, async (req, res) => {
@@ -1868,7 +1984,24 @@ app.patch("/api/admin/orders/:id", auth, adminOnly, async (req, res) => {
   }
 
   await order.save();
-  res.json({ order });
+  const shouldEmail =
+    req.body.status !== undefined ||
+    req.body.paymentStatus !== undefined ||
+    req.body.deliverySlot !== undefined ||
+    req.body.refundStatus !== undefined ||
+    req.body.deliveryInstruction !== undefined ||
+    req.body.coupon !== undefined ||
+    req.body.replacementChoice !== undefined ||
+    req.body.supportIssue !== undefined;
+  const emailStatus = shouldEmail
+    ? queueOrderUpdateEmail({
+        order,
+        user: await User.findById(order.user),
+        event: req.body.status && req.body.status !== previousStatus ? `Status changed to ${order.status}` : "Order updated",
+        message: `Your order #${String(order._id).slice(-6).toUpperCase()} was updated by QuickMart support.`,
+      })
+    : { sent: false, skipped: true };
+  res.json({ order, emailStatus });
 });
 
 app.delete("/api/admin/orders/:id", auth, adminOnly, async (req, res) => {
@@ -1877,8 +2010,14 @@ app.delete("/api/admin/orders/:id", auth, adminOnly, async (req, res) => {
   if (orderCanRestoreStock(order.status)) {
     await restoreOrderStock(order);
   }
+  const emailStatus = queueOrderUpdateEmail({
+    order,
+    user: await User.findById(order.user),
+    event: "Order removed",
+    message: `Your order #${String(order._id).slice(-6).toUpperCase()} was removed by QuickMart support. Contact support if you need help.`,
+  });
   await order.deleteOne();
-  res.json({ ok: true, id: req.params.id });
+  res.json({ ok: true, id: req.params.id, emailStatus });
 });
 
 app.get("/api/delivery/console", auth, async (req, res) => {
@@ -1900,12 +2039,18 @@ app.patch("/api/delivery/orders/:id/proof", auth, async (req, res) => {
   }
   order.status = "Delivered";
   order.paymentStatus = "paid";
-  order.timeline = order.timeline.map((step) =>
+  order.timeline = (order.timeline || []).map((step) =>
     step.label === "Delivered" ? { ...(step.toObject ? step.toObject() : step), done: true, time: "Now" } : step
   );
   order.notes = { ...(order.notes || {}), proof: req.body.proof || "PIN verified delivery" };
   await order.save();
-  res.json({ order });
+  const emailStatus = queueOrderUpdateEmail({
+    order,
+    user: await User.findById(order.user),
+    event: "Order delivered",
+    message: `Your order #${String(order._id).slice(-6).toUpperCase()} has been delivered. Thanks for shopping with us.`,
+  });
+  res.json({ order, emailStatus });
 });
 
 app.get("/api/admin/summary", auth, adminOnly, async (req, res) => {

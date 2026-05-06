@@ -30,5 +30,5 @@ Open `http://localhost:4100`.
 - Product cards with stock, ETA, discounts, veg markers, replacement hints
 - Cart drawer, quantity controls, delivery instructions
 - Checkout with address, payment mode, coupon, and delivery slot
-- Order tracking timeline and reorder
+- Order tracking timeline, reorder, and automatic email updates for order changes
 - Admin dashboard for inventory, stock, order status, and analytics
