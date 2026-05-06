@@ -86,6 +86,13 @@ const safeOrderTimeline = (order) =>
     : [{ label: order?.status || "Order status", time: "Now", done: true }];
 const safeOrderItems = (order) => (Array.isArray(order?.items) ? order.items : []);
 const shortOrderId = (order) => String(order?._id || "ORDER").slice(-6).toUpperCase();
+const clothingSizes = ["XS", "S", "M", "L", "XL", "XXL"];
+const needsSizeSelection = (product) =>
+  String(product?.category || "").toLowerCase() === "fashion" ||
+  /\b(size|dress|shirt|jeans|jacket|kurta|top|tee|t-shirt|cloth)\b/i.test(
+    `${product?.name || ""} ${product?.packSize || ""} ${product?.subcategory || ""}`
+  );
+const cartLineKey = (productId, selectedSize = "") => `${productId}${selectedSize ? `::${selectedSize}` : ""}`;
 
 const deliverySlots = ["8-12 minutes", "15-20 minutes", "Schedule 7:00 AM", "Schedule 9:00 PM"];
 
@@ -230,7 +237,8 @@ function App() {
   const cartQuantityByProduct = useMemo(
     () =>
       cart.reduce((map, item) => {
-        map[item.product] = item.quantity;
+        map[item.product] = (map[item.product] || 0) + item.quantity;
+        map[item.cartKey || cartLineKey(item.product, item.selectedSize)] = item.quantity;
         return map;
       }, {}),
     [cart]
@@ -802,18 +810,30 @@ function App() {
     setMessage("Demo account deleted");
   };
 
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = (product, quantity = 1, options = {}) => {
+    const selectedSize = options.selectedSize || "";
+    const lineKey = cartLineKey(product._id, selectedSize);
     setCart((items) => {
-      const existing = items.find((item) => item.product === product._id);
+      const existing = items.find((item) => (item.cartKey || cartLineKey(item.product, item.selectedSize)) === lineKey);
       if (existing) {
         return items.map((item) =>
-          item.product === product._id
+          (item.cartKey || cartLineKey(item.product, item.selectedSize)) === lineKey
             ? { ...item, quantity: Math.min(item.quantity + quantity, product.stock) }
             : item
         );
       }
 
-      return [...items, { product: product._id, quantity, name: product.name }];
+      return [
+        ...items,
+        {
+          product: product._id,
+          cartKey: lineKey,
+          selectedSize,
+          quantity,
+          name: product.name,
+          packSize: selectedSize ? `${selectedSize} size` : product.packSize,
+        },
+      ];
     });
     setIsCartOpen(true);
   };
@@ -821,8 +841,12 @@ function App() {
   const updateCart = (product, quantity) => {
     setCart((items) =>
       quantity <= 0
-        ? items.filter((item) => item.product !== product)
-        : items.map((item) => (item.product === product ? { ...item, quantity } : item))
+        ? items.filter((item) => item.product !== product && (item.cartKey || cartLineKey(item.product, item.selectedSize)) !== product)
+        : items.map((item) =>
+            item.product === product || (item.cartKey || cartLineKey(item.product, item.selectedSize)) === product
+              ? { ...item, quantity }
+              : item
+          )
     );
   };
 
@@ -1352,7 +1376,7 @@ function App() {
       {selectedProduct && (
         <ProductModal
           product={selectedProduct}
-          quantity={cartQuantityByProduct[selectedProduct._id] || 0}
+          quantity={cartQuantityByProduct}
           addToCart={addToCart}
           updateCart={updateCart}
           toggleWishlist={toggleWishlist}
@@ -1966,7 +1990,8 @@ function WishlistView({
   );
 }
 
-function QuantityButton({ product, quantity, addToCart, updateCart }) {
+function QuantityButton({ product, quantity, addToCart, updateCart, selectedSize = "" }) {
+  const lineKey = cartLineKey(product._id, selectedSize);
   if (product.stock <= 0) {
     return (
       <button className="addButton disabled" disabled>
@@ -1978,11 +2003,11 @@ function QuantityButton({ product, quantity, addToCart, updateCart }) {
   if (quantity > 0) {
     return (
       <div className="quantityPill">
-        <button onClick={() => updateCart(product._id, quantity - 1)}>
+        <button onClick={() => updateCart(selectedSize ? lineKey : product._id, quantity - 1)}>
           <Minus size={14} />
         </button>
         <strong>{quantity}</strong>
-        <button onClick={() => updateCart(product._id, quantity + 1)}>
+        <button onClick={() => updateCart(selectedSize ? lineKey : product._id, quantity + 1)}>
           <Plus size={14} />
         </button>
       </div>
@@ -1990,7 +2015,7 @@ function QuantityButton({ product, quantity, addToCart, updateCart }) {
   }
 
   return (
-    <button className="addButton" onClick={() => addToCart(product)}>
+    <button className="addButton" onClick={() => addToCart(product, 1, { selectedSize })}>
       <Plus size={16} />
       Add
     </button>
@@ -2023,19 +2048,20 @@ function CartDrawer({ quote, coupon, setCoupon, coupons, updateCart, close, chec
             </div>
           )}
           {items.map((item) => (
-            <div className="cartLine" key={item.product}>
+            <div className="cartLine" key={item.cartKey || item.product}>
               <ProductImage product={item} />
               <div>
                 <strong>{item.name}</strong>
                 <span>{item.packSize}</span>
+                {item.selectedSize && <small className="cartMeta">Size selected: {item.selectedSize}</small>}
                 <p>{currency.format(item.price)}</p>
               </div>
               <div className="stepper">
-                <button onClick={() => updateCart(String(item.product), item.quantity - 1)}>
+                <button onClick={() => updateCart(String(item.cartKey || item.product), item.quantity - 1)}>
                   <Minus size={14} />
                 </button>
                 <span>{item.quantity}</span>
-                <button onClick={() => updateCart(String(item.product), item.quantity + 1)}>
+                <button onClick={() => updateCart(String(item.cartKey || item.product), item.quantity + 1)}>
                   <Plus size={14} />
                 </button>
               </div>
@@ -2257,7 +2283,19 @@ function CheckoutModal({
 function ProductModal({ product, quantity, addToCart, updateCart, toggleWishlist, isSaved, addReview, close }) {
   const [reviewText, setReviewText] = useState("");
   const [reviewRating, setReviewRating] = useState(5);
+  const [selectedSize, setSelectedSize] = useState(
+    needsSizeSelection(product)
+      ? clothingSizes.find((size) => String(product.packSize || "").toUpperCase().includes(size)) || "M"
+      : ""
+  );
   const nutrition = product.nutrition || {};
+  const sizeRequired = needsSizeSelection(product);
+  const selectedLineKey = cartLineKey(product._id, selectedSize);
+  const modalQuantity = sizeRequired ? quantity[selectedLineKey] || 0 : quantity[product._id] || 0;
+  const modalProduct = {
+    ...product,
+    packSize: selectedSize ? `${selectedSize} size` : product.packSize,
+  };
 
   return (
     <div className="overlay">
@@ -2281,14 +2319,36 @@ function ProductModal({ product, quantity, addToCart, updateCart, toggleWishlist
               <del>{currency.format(product.mrp)}</del>
             </div>
             <QuantityButton
-              product={product}
-              quantity={quantity}
+              product={modalProduct}
+              quantity={modalQuantity}
               addToCart={addToCart}
               updateCart={updateCart}
+              selectedSize={selectedSize}
             />
           </div>
-          <p>{product.brand} · {product.packSize}</p>
+          <p>{product.brand} · {modalProduct.packSize}</p>
           <p>{product.description || "Freshly packed from the nearest quick-commerce store."}</p>
+          {sizeRequired && (
+            <div className="sizeSelector">
+              <div>
+                <strong>Select size</strong>
+                <small>Choose one size before adding clothing to cart.</small>
+              </div>
+              <div className="sizeOptions">
+                {clothingSizes.map((size) => (
+                  <button
+                    type="button"
+                    key={size}
+                    className={selectedSize === size ? "active" : ""}
+                    onClick={() => setSelectedSize(size)}
+                  >
+                    {size}
+                  </button>
+                ))}
+              </div>
+              <small className="sizeHint">Selected: {selectedSize} · You can add another size separately.</small>
+            </div>
+          )}
           <button className={isSaved ? "saveWide saved" : "saveWide"} onClick={() => toggleWishlist(product)}>
             <Heart size={17} fill={isSaved ? "currentColor" : "none"} />
             {isSaved ? "Saved to wishlist" : "Save to wishlist"}
@@ -2329,10 +2389,11 @@ function ProductModal({ product, quantity, addToCart, updateCart, toggleWishlist
               <del>{currency.format(product.mrp)}</del>
             </div>
             <QuantityButton
-              product={product}
-              quantity={quantity}
+              product={modalProduct}
+              quantity={modalQuantity}
               addToCart={addToCart}
               updateCart={updateCart}
+              selectedSize={selectedSize}
             />
           </div>
           <div className="reviewsBox">

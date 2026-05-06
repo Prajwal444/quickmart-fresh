@@ -1031,9 +1031,11 @@ app.post("/api/cart/quote", async (req, res) => {
 
       return {
         product: product._id,
+        cartKey: cartItem.cartKey || `${product._id}${cartItem.selectedSize ? `::${cartItem.selectedSize}` : ""}`,
+        selectedSize: cartItem.selectedSize || "",
         name: product.name,
         image: product.image,
-        packSize: product.packSize,
+        packSize: cartItem.selectedSize ? `${cartItem.selectedSize} size` : product.packSize,
         price: product.price,
         mrp: product.mrp,
         quantity: Math.min(cartItem.quantity, product.stock),
@@ -1069,9 +1071,11 @@ app.post("/api/orders", auth, async (req, res) => {
 
       return {
         product: product._id,
+        cartKey: cartItem.cartKey || `${product._id}${cartItem.selectedSize ? `::${cartItem.selectedSize}` : ""}`,
+        selectedSize: cartItem.selectedSize || "",
         name: product.name,
         image: product.image,
-        packSize: product.packSize,
+        packSize: cartItem.selectedSize ? `${cartItem.selectedSize} size` : product.packSize,
         price: product.price,
         mrp: product.mrp,
         quantity,

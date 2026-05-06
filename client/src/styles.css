@@ -1148,6 +1148,18 @@ button {
   margin: 5px 0 0;
 }
 
+.cartMeta {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 4px 8px;
+  color: var(--mint-dark);
+  background: #e9fbf4;
+  border: 1px solid #bcebd8;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
 .stepper {
   display: flex;
   gap: 8px;
@@ -2389,6 +2401,54 @@ button {
 .substituteBox span {
   color: var(--muted);
   overflow-wrap: anywhere;
+}
+
+.sizeSelector {
+  display: grid;
+  gap: 10px;
+  padding: 14px;
+  background: #f7fffb;
+  border: 1px solid #bcebd8;
+  border-radius: 18px;
+}
+
+.sizeSelector strong,
+.sizeSelector small {
+  display: block;
+}
+
+.sizeSelector small {
+  color: var(--muted);
+  margin-top: 2px;
+}
+
+.sizeOptions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.sizeOptions button {
+  min-width: 48px;
+  min-height: 42px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: white;
+  color: var(--ink);
+  font-weight: 950;
+  cursor: pointer;
+}
+
+.sizeOptions button.active {
+  color: white;
+  background: var(--mint);
+  border-color: var(--mint);
+  box-shadow: 0 10px 22px rgba(5, 150, 105, 0.22);
+}
+
+.sizeHint {
+  color: var(--mint-dark) !important;
+  font-weight: 900;
 }
 
 .detailList span {
