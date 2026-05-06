@@ -1,0 +1,32 @@
+{
+  "name": "quickmart-fresh",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Original quick-commerce grocery app inspired by modern instant delivery experiences.",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "nodemon server/index.js",
+    "client:dev": "npm run dev --prefix client -- --host 127.0.0.1",
+    "seed": "node server/seed.js",
+    "seed:catalog": "node server/bulkCatalogSeed.js",
+    "build": "npm install --prefix client && npm run build --prefix client",
+    "start": "node server/index.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "cookie-parser": "^1.4.6",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.2",
+    "mongoose": "^8.9.5",
+    "morgan": "^1.10.0",
+    "nodemailer": "^8.0.6",
+    "stripe": "^17.5.0"
+  },
+  "devDependencies": {
+    "concurrently": "^9.1.2",
+    "nodemon": "^3.1.9"
+  }
+}
