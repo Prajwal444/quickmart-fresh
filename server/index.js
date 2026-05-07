@@ -218,6 +218,14 @@ const toBoolean = (value, fallback = false) => {
   return fallback;
 };
 
+const escapeRegex = (value) => String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
+const cartProductId = (value) => {
+  if (!value) return "";
+  if (typeof value === "object" && value._id) return String(value._id);
+  return String(value);
+};
+
 const slugify = (value) =>
   String(value || "product")
     .toLowerCase()
@@ -274,7 +282,7 @@ const toProductQuery = (query) => {
       .split(",")
       .map((brand) => brand.trim())
       .filter(Boolean);
-    if (brands.length) filter.brand = { $in: brands.map((brand) => new RegExp(`^${brand}$`, "i")) };
+    if (brands.length) filter.brand = { $in: brands.map((brand) => new RegExp(`^${escapeRegex(brand)}$`, "i")) };
   }
   if (query.handpicked === "true") filter.isHandpicked = true;
   if (query.inStock === "true") filter.stock = { $gt: 0 };
@@ -306,15 +314,16 @@ const toProductQuery = (query) => {
   }
   if (query.q) {
     const search = synonyms[String(query.q).toLowerCase()] || query.q;
+    const safeSearch = escapeRegex(search);
     filter.$or = [
-      { name: new RegExp(search, "i") },
-      { brand: new RegExp(search, "i") },
-      { tags: new RegExp(search, "i") },
-      { dietaryTags: new RegExp(search, "i") },
-      { category: new RegExp(search, "i") },
+      { name: new RegExp(safeSearch, "i") },
+      { brand: new RegExp(safeSearch, "i") },
+      { tags: new RegExp(safeSearch, "i") },
+      { dietaryTags: new RegExp(safeSearch, "i") },
+      { category: new RegExp(safeSearch, "i") },
     ];
   }
-  if (query.dietary && query.dietary !== "all") filter.dietaryTags = new RegExp(query.dietary, "i");
+  if (query.dietary && query.dietary !== "all") filter.dietaryTags = new RegExp(escapeRegex(query.dietary), "i");
   const rating = toFiniteNumber(query.rating);
   if (rating !== null) filter.rating = { $gte: rating };
 
@@ -757,12 +766,15 @@ app.delete("/api/me/addresses/:addressId", auth, async (req, res) => {
 app.patch("/api/me/wishlist/:productId", auth, async (req, res) => {
   const id = req.params.productId;
   const hasProduct = req.user.wishlist.some((item) => String(item) === id);
-  req.user.wishlist = hasProduct
-    ? req.user.wishlist.filter((item) => String(item) !== id)
-    : [...req.user.wishlist, id];
+  const shouldSave = req.body.saved === undefined ? !hasProduct : Boolean(req.body.saved);
+  req.user.wishlist = shouldSave
+    ? hasProduct
+      ? req.user.wishlist
+      : [...req.user.wishlist, id]
+    : req.user.wishlist.filter((item) => String(item) !== id);
   await req.user.save();
   const user = await User.findById(req.user._id).populate("wishlist");
-  res.json({ user, wishlist: user.wishlist || [], products: user.wishlist || [], saved: !hasProduct });
+  res.json({ user, wishlist: user.wishlist || [], products: user.wishlist || [], saved: shouldSave });
 });
 
 app.patch("/api/me/preferences", auth, async (req, res) => {
@@ -1022,11 +1034,13 @@ app.get("/api/recommendations", async (req, res) => {
 });
 
 app.post("/api/cart/quote", async (req, res) => {
-  const ids = (req.body.items || []).map((item) => item.product);
+  const requestedItems = req.body.items || [];
+  const ids = requestedItems.map((item) => cartProductId(item.product)).filter(Boolean);
   const products = await Product.find({ _id: { $in: ids } });
-  const items = (req.body.items || [])
+  const items = requestedItems
     .map((cartItem) => {
-      const product = products.find((item) => String(item._id) === cartItem.product);
+      const productId = cartProductId(cartItem.product);
+      const product = products.find((item) => String(item._id) === productId);
       if (!product) return null;
 
       return {
@@ -1048,12 +1062,12 @@ app.post("/api/cart/quote", async (req, res) => {
 });
 
 app.post("/api/orders", auth, async (req, res) => {
-  const ids = (req.body.items || []).map((item) => item.product);
-  const products = await Product.find({ _id: { $in: ids } });
   const requestedItems = req.body.items || [];
+  const ids = requestedItems.map((item) => cartProductId(item.product)).filter(Boolean);
+  const products = await Product.find({ _id: { $in: ids } });
   const paymentMode = normalizePaymentMode(req.body.paymentMode);
   const duplicateKey = `${req.user._id}:${requestedItems
-    .map((item) => `${item.product}:${item.quantity}`)
+    .map((item) => `${cartProductId(item.product)}:${item.selectedSize || ""}:${item.quantity}`)
     .sort()
     .join("|")}:${paymentMode}`;
   const lastAttemptAt = recentOrderAttempts.get(duplicateKey);
@@ -1062,9 +1076,10 @@ app.post("/api/orders", auth, async (req, res) => {
       message: "Duplicate order protection: this same cart was just placed. Check Orders before retrying.",
     });
   }
-  const items = (req.body.items || [])
+  const items = requestedItems
     .map((cartItem) => {
-      const product = products.find((item) => String(item._id) === cartItem.product);
+      const productId = cartProductId(cartItem.product);
+      const product = products.find((item) => String(item._id) === productId);
       if (!product) return null;
       const requestedQuantity = Number(cartItem.quantity || 1);
       const quantity = Math.min(requestedQuantity, product.stock);
@@ -1091,7 +1106,8 @@ app.post("/api/orders", auth, async (req, res) => {
   const summary = priceSummary(items, req.body.notes?.coupon);
   const unavailableItems = requestedItems
     .map((cartItem) => {
-      const product = products.find((item) => String(item._id) === cartItem.product);
+      const productId = cartProductId(cartItem.product);
+      const product = products.find((item) => String(item._id) === productId);
       if (!product) return "Removed unavailable item";
       if (product.stock <= 0) return product.name;
       if (product.stock < Number(cartItem.quantity || 1)) {

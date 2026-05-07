@@ -94,6 +94,12 @@ const needsSizeSelection = (product) =>
   );
 const cartLineKey = (productId, selectedSize = "") => `${productId}${selectedSize ? `::${selectedSize}` : ""}`;
 
+const cartProductId = (value) => {
+  if (!value) return "";
+  if (typeof value === "object" && value._id) return String(value._id);
+  return String(value);
+};
+
 const deliverySlots = ["8-12 minutes", "15-20 minutes", "Schedule 7:00 AM", "Schedule 9:00 PM"];
 
 const addressPresets = {
@@ -237,8 +243,9 @@ function App() {
   const cartQuantityByProduct = useMemo(
     () =>
       cart.reduce((map, item) => {
-        map[item.product] = (map[item.product] || 0) + item.quantity;
-        map[item.cartKey || cartLineKey(item.product, item.selectedSize)] = item.quantity;
+        const productId = cartProductId(item.product);
+        map[productId] = (map[productId] || 0) + item.quantity;
+        map[item.cartKey || cartLineKey(productId, item.selectedSize)] = item.quantity;
         return map;
       }, {}),
     [cart]
@@ -411,7 +418,7 @@ function App() {
   const loadRecommendations = async () => {
     const params = new URLSearchParams();
     if (query) params.set("q", query);
-    if (cart.length) params.set("cart", cart.map((item) => item.product).join(","));
+    if (cart.length) params.set("cart", cart.map((item) => cartProductId(item.product)).filter(Boolean).join(","));
     const data = await api(`/api/recommendations?${params}`);
     setRecommendations(data);
   };
@@ -555,8 +562,10 @@ function App() {
       setUser(data.user);
       setActiveView(nextView || (data.user.role === "admin" ? "admin" : "home"));
       setMessage(`Logged in as ${data.user.name}`);
+      return data.user;
     } catch (error) {
       setMessage(error.message);
+      return null;
     }
   };
 
@@ -831,6 +840,12 @@ function App() {
           selectedSize,
           quantity,
           name: product.name,
+          brand: product.brand,
+          category: product.category,
+          image: product.image,
+          price: product.price,
+          mrp: product.mrp,
+          stock: product.stock,
           packSize: selectedSize ? `${selectedSize} size` : product.packSize,
         },
       ];
@@ -839,20 +854,96 @@ function App() {
   };
 
   const updateCart = (product, quantity) => {
+    const target = String(product);
     setCart((items) =>
       quantity <= 0
-        ? items.filter((item) => item.product !== product && (item.cartKey || cartLineKey(item.product, item.selectedSize)) !== product)
+        ? items.filter((item) => {
+            const productId = cartProductId(item.product);
+            const itemKey = String(item.cartKey || cartLineKey(productId, item.selectedSize));
+            return productId !== target && itemKey !== target;
+          })
         : items.map((item) =>
-            item.product === product || (item.cartKey || cartLineKey(item.product, item.selectedSize)) === product
-              ? { ...item, quantity }
-              : item
+            {
+              const productId = cartProductId(item.product);
+              const itemKey = String(item.cartKey || cartLineKey(productId, item.selectedSize));
+              return productId === target || itemKey === target
+                ? {
+                    ...item,
+                    product: productId || item.product,
+                    quantity: Number(item.stock) > 0 ? Math.min(quantity, Number(item.stock)) : quantity,
+                  }
+                : item;
+            }
           )
     );
   };
 
+  const clearCart = () => {
+    setCart([]);
+    setCoupon("");
+    setMessage("Cart cleared");
+  };
+
+  const moveCartItemToWishlist = async (item) => {
+    const productId = cartProductId(item.product || item._id);
+    const lineKey = String(item.cartKey || productId);
+    if (!productId) return;
+
+    if (!user) {
+      const loggedInUser = await login("customer");
+      if (!loggedInUser) return;
+    }
+
+    try {
+      const data = await api(`/api/me/wishlist/${productId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ saved: true }),
+      });
+      setUser(data.user);
+      setWishlistProducts(data.products || data.wishlist || []);
+      updateCart(lineKey, 0);
+      setMessage(`${item.name} moved to wishlist`);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
+  const saveCartForLater = async () => {
+    if (!cart.length) return;
+    if (!user) {
+      const loggedInUser = await login("customer");
+      if (!loggedInUser) return;
+    }
+
+    try {
+      const productIds = [...new Set(cart.map((item) => cartProductId(item.product)).filter(Boolean))];
+      if (!productIds.length) {
+        clearCart();
+        return;
+      }
+      const responses = await Promise.all(
+        productIds.map((productId) =>
+          api(`/api/me/wishlist/${productId}`, {
+            method: "PATCH",
+            body: JSON.stringify({ saved: true }),
+          })
+        )
+      );
+      const latest = responses[responses.length - 1];
+      setUser(latest?.user || user);
+      setWishlistProducts(latest?.products || latest?.wishlist || []);
+      setCart([]);
+      setCoupon("");
+      setMessage(`${productIds.length} products saved for later`);
+    } catch (error) {
+      setMessage(error.message);
+    }
+  };
+
   const placeOrder = async () => {
     if (!user) {
-      await login("customer");
+      const loggedInUser = await login("customer");
+      if (!loggedInUser) return;
     }
 
     if (simulatePaymentFailure && paymentMode !== "cod") {
@@ -864,30 +955,38 @@ function App() {
       return;
     }
 
-    const order = await api("/api/orders", {
-      method: "POST",
-      body: JSON.stringify({
-        items: cart,
-        paymentMode,
-        deliverySlot: `Arriving in ${deliverySlot}`,
-        address: user?.addresses?.[0],
-        notes: {
-          coupon,
-          deliveryInstruction,
-          replacementChoice,
-        },
-      }),
-    });
+    try {
+      const order = await api("/api/orders", {
+        method: "POST",
+        body: JSON.stringify({
+          items: cart,
+          paymentMode,
+          deliverySlot: `Arriving in ${deliverySlot}`,
+          address: user?.addresses?.[0],
+          notes: {
+            coupon,
+            deliveryInstruction,
+            replacementChoice,
+          },
+        }),
+      });
 
-    setCart([]);
-    setPaymentRecovery(null);
-    setSimulatePaymentFailure(false);
-    setIsCheckoutOpen(false);
-    setIsCartOpen(false);
-    setActiveView("orders");
-    setMessage(`Order ${shortOrderId(order.order)} placed`);
-    await loadOrders();
-    await loadNotifications();
+      setCart([]);
+      setPaymentRecovery(null);
+      setSimulatePaymentFailure(false);
+      setIsCheckoutOpen(false);
+      setIsCartOpen(false);
+      setActiveView("orders");
+      setMessage(`Order ${shortOrderId(order.order)} placed`);
+      await loadOrders();
+      await loadNotifications();
+    } catch (error) {
+      setMessage(error.message);
+      setPaymentRecovery({
+        title: "Order could not be placed",
+        body: error.message,
+      });
+    }
   };
 
   return (
@@ -1345,6 +1444,10 @@ function App() {
           checkout={() => setIsCheckoutOpen(true)}
           recommendations={recommendations}
           addToCart={addToCart}
+          openProduct={openProduct}
+          moveToWishlist={moveCartItemToWishlist}
+          saveForLater={saveCartForLater}
+          clearCart={clearCart}
         />
       )}
 
@@ -1486,12 +1589,18 @@ function ProductGrid({
                 <strong>{currency.format(product.price)}</strong>
                 <del>{currency.format(product.mrp)}</del>
               </div>
-              <QuantityButton
-                product={product}
-                quantity={cartQuantityByProduct[product._id] || 0}
-                addToCart={addToCart}
-                updateCart={updateCart}
-              />
+              {needsSizeSelection(product) ? (
+                <button className="addButton" onClick={() => openProduct(product)}>
+                  Choose size
+                </button>
+              ) : (
+                <QuantityButton
+                  product={product}
+                  quantity={cartQuantityByProduct[product._id] || 0}
+                  addToCart={addToCart}
+                  updateCart={updateCart}
+                />
+              )}
             </div>
           </div>
         </article>
@@ -1527,7 +1636,6 @@ function ProductImage({ product, className = "" }) {
 
   return (
     <div className={`productImageFrame ${className}`}>
-      {fallback}
       <img
         src={image}
         alt={name}
@@ -1891,9 +1999,12 @@ function RecommendationShelf({ recommendations, addToCart, openProduct }) {
               <strong>{product.name}</strong>
               <span>{product.brand} · {currency.format(product.price)}</span>
             </button>
-            <button className="addButton" onClick={() => addToCart(product)}>
-              <Plus size={15} />
-              Add
+            <button
+              className="addButton"
+              onClick={() => (needsSizeSelection(product) ? openProduct(product) : addToCart(product))}
+            >
+              {needsSizeSelection(product) ? null : <Plus size={15} />}
+              {needsSizeSelection(product) ? "Choose size" : "Add"}
             </button>
           </article>
         ))}
@@ -1929,9 +2040,12 @@ function DiscoveryShelf({ title, products = [], addToCart, openProduct }) {
                 <strong>{normalized.name}</strong>
                 <span>{normalized.brand || "Buy again"} · {currency.format(normalized.price)}</span>
               </button>
-              <button className="addButton" onClick={() => addToCart(normalized)}>
-                <Plus size={15} />
-                Add
+              <button
+                className="addButton"
+                onClick={() => (needsSizeSelection(normalized) ? openProduct(normalized) : addToCart(normalized))}
+              >
+                {needsSizeSelection(normalized) ? null : <Plus size={15} />}
+                {needsSizeSelection(normalized) ? "Choose size" : "Add"}
               </button>
             </article>
           );
@@ -1992,6 +2106,8 @@ function WishlistView({
 
 function QuantityButton({ product, quantity, addToCart, updateCart, selectedSize = "" }) {
   const lineKey = cartLineKey(product._id, selectedSize);
+  const stockLimit = Number(product.stock || 0);
+  const atStockLimit = stockLimit > 0 && quantity >= stockLimit;
   if (product.stock <= 0) {
     return (
       <button className="addButton disabled" disabled>
@@ -2007,7 +2123,11 @@ function QuantityButton({ product, quantity, addToCart, updateCart, selectedSize
           <Minus size={14} />
         </button>
         <strong>{quantity}</strong>
-        <button onClick={() => updateCart(selectedSize ? lineKey : product._id, quantity + 1)}>
+        <button
+          disabled={atStockLimit}
+          title={atStockLimit ? "No more stock available" : "Add one more"}
+          onClick={() => updateCart(selectedSize ? lineKey : product._id, atStockLimit ? quantity : quantity + 1)}
+        >
           <Plus size={14} />
         </button>
       </div>
@@ -2022,9 +2142,49 @@ function QuantityButton({ product, quantity, addToCart, updateCart, selectedSize
   );
 }
 
-function CartDrawer({ quote, coupon, setCoupon, coupons, updateCart, close, checkout, recommendations, addToCart }) {
+function CartDrawer({
+  quote,
+  coupon,
+  setCoupon,
+  coupons,
+  updateCart,
+  close,
+  checkout,
+  recommendations,
+  addToCart,
+  openProduct,
+  moveToWishlist,
+  saveForLater,
+  clearCart,
+}) {
   const items = quote?.items || [];
   const summary = quote?.summary;
+  const subtotal = summary?.subtotal || 0;
+  const couponCards = (coupons || []).map((item) => {
+    const minCart = Number(item.minCart ?? item.minimumCart ?? 0);
+    const discount = Number(item.discount ?? 0);
+    const shortBy = Math.max(minCart - subtotal, 0);
+    const isFreeShip = item.code === "FREESHIP";
+    const estimatedSavings = shortBy
+      ? 0
+      : isFreeShip
+        ? summary?.deliveryFee || 29
+        : Math.min(discount || 0, subtotal);
+
+    return {
+      ...item,
+      minCart,
+      discount,
+      shortBy,
+      estimatedSavings,
+      eligible: shortBy === 0,
+      selected: coupon === item.code,
+      label: isFreeShip ? "Free delivery" : discount ? `${currency.format(discount)} off` : item.title,
+    };
+  });
+  const bestCoupon = couponCards
+    .filter((item) => item.eligible)
+    .sort((a, b) => b.estimatedSavings - a.estimatedSavings)[0];
 
   return (
     <div className="overlay">
@@ -2039,6 +2199,19 @@ function CartDrawer({ quote, coupon, setCoupon, coupons, updateCart, close, chec
           </button>
         </div>
 
+        {!!items.length && (
+          <div className="cartToolbar">
+            <button type="button" onClick={saveForLater}>
+              <Heart size={15} />
+              Save all for later
+            </button>
+            <button type="button" className="dangerGhost" onClick={clearCart}>
+              <Trash2 size={15} />
+              Clear cart
+            </button>
+          </div>
+        )}
+
         <div className="cartItems">
           {!items.length && (
             <div className="emptyState">
@@ -2047,46 +2220,89 @@ function CartDrawer({ quote, coupon, setCoupon, coupons, updateCart, close, chec
               <p>Add daily essentials, fresh produce, snacks and more.</p>
             </div>
           )}
-          {items.map((item) => (
-            <div className="cartLine" key={item.cartKey || item.product}>
-              <ProductImage product={item} />
-              <div>
-                <strong>{item.name}</strong>
-                <span>{item.packSize}</span>
-                {item.selectedSize && <small className="cartMeta">Size selected: {item.selectedSize}</small>}
-                <p>{currency.format(item.price)}</p>
+          {items.map((item) => {
+            const lineKey = String(item.cartKey || item.product);
+            const stockLimit = Number(item.stock || 0);
+            const atStockLimit = stockLimit > 0 && item.quantity >= stockLimit;
+            return (
+              <div className="cartLine" key={lineKey}>
+                <ProductImage product={item} />
+                <div className="cartLineInfo">
+                  <strong>{item.name}</strong>
+                  <span>{item.packSize}</span>
+                  {item.selectedSize && <small className="cartMeta">Size selected: {item.selectedSize}</small>}
+                  <p>{currency.format(item.price)}</p>
+                  {atStockLimit && <small className="stockLimitNote">Max stock reached</small>}
+                </div>
+                <div className="cartLineActions">
+                  <div className="stepper">
+                    <button onClick={() => updateCart(lineKey, item.quantity - 1)}>
+                      <Minus size={14} />
+                    </button>
+                    <span>{item.quantity}</span>
+                    <button
+                      disabled={atStockLimit}
+                      title={atStockLimit ? "No more stock available" : "Add one more"}
+                      onClick={() => updateCart(lineKey, atStockLimit ? item.quantity : item.quantity + 1)}
+                    >
+                      <Plus size={14} />
+                    </button>
+                  </div>
+                  <button className="cartWishlistButton" onClick={() => moveToWishlist(item)}>
+                    <Heart size={14} />
+                    <span>Move to wishlist</span>
+                  </button>
+                </div>
               </div>
-              <div className="stepper">
-                <button onClick={() => updateCart(String(item.cartKey || item.product), item.quantity - 1)}>
-                  <Minus size={14} />
-                </button>
-                <span>{item.quantity}</span>
-                <button onClick={() => updateCart(String(item.cartKey || item.product), item.quantity + 1)}>
-                  <Plus size={14} />
-                </button>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
 
         {!!items.length && (
           <div className="couponChooser">
-            <div>
-              <strong>Apply coupon?</strong>
-              <small>{summary?.coupon?.message || "Optional. Choose a coupon or continue without one."}</small>
+            <div className="couponHeader">
+              <div>
+                <span>Offers for you</span>
+                <strong>{summary?.coupon?.applied ? `${summary.coupon.code} applied` : bestCoupon ? `${bestCoupon.code} can save ${currency.format(bestCoupon.estimatedSavings)}` : "Choose a coupon"}</strong>
+                <small>{summary?.coupon?.message || "Apply one offer, or continue without a coupon."}</small>
+              </div>
+              <TicketPercent size={24} />
             </div>
-            <button type="button" className={!coupon ? "selected" : ""} onClick={() => setCoupon("")}>
-              No coupon
+
+            <button type="button" className={!coupon ? "couponNone selected" : "couponNone"} onClick={() => setCoupon("")}>
+              <span>
+                <strong>No coupon</strong>
+                <small>Continue with product savings only</small>
+              </span>
+              {!coupon ? <b>Selected</b> : <b>Choose</b>}
             </button>
-            {(coupons || []).map((item) => (
+
+            {couponCards.map((item) => (
               <button
                 type="button"
                 key={item.code}
-                className={coupon === item.code ? "selected" : ""}
+                className={[
+                  "couponCard",
+                  item.selected ? "selected" : "",
+                  item.eligible ? "" : "locked",
+                  bestCoupon?.code === item.code ? "best" : "",
+                ].filter(Boolean).join(" ")}
                 onClick={() => setCoupon(item.code)}
               >
-                {item.code}
-                <small>{item.title}</small>
+                <span className="couponBadge">{item.code}</span>
+                <span className="couponCopy">
+                  <strong>{item.title}</strong>
+                  <small>
+                    {item.eligible
+                      ? `Save ${currency.format(item.estimatedSavings)} on this cart`
+                      : `Add ${currency.format(item.shortBy)} more to unlock`}
+                  </small>
+                  <em>{item.label}{item.minCart ? ` · Min cart ${currency.format(item.minCart)}` : ""}</em>
+                </span>
+                <span className="couponAction">
+                  {bestCoupon?.code === item.code && <small>Best</small>}
+                  <b>{item.selected ? "Applied" : item.eligible ? "Apply" : "Try"}</b>
+                </span>
               </button>
             ))}
           </div>
@@ -2121,10 +2337,13 @@ function CartDrawer({ quote, coupon, setCoupon, coupons, updateCart, close, chec
             <span>Coupons are optional. Apply one above if you want the discount.</span>
             <small>{recommendations.reason}</small>
             {recommendations.products.slice(0, 3).map((product) => (
-              <button key={product._id} onClick={() => addToCart(product)}>
+              <button
+                key={product._id}
+                onClick={() => (needsSizeSelection(product) && openProduct ? openProduct(product) : addToCart(product))}
+              >
                 <ProductImage product={product} />
                 <span>{product.name}</span>
-                <b>{currency.format(product.price)}</b>
+                <b>{needsSizeSelection(product) ? "Choose size" : currency.format(product.price)}</b>
               </button>
             ))}
           </div>
