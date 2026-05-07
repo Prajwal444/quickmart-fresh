@@ -33,6 +33,7 @@ body {
     #f7fafc;
   font-family: "Manrope", sans-serif;
   overflow-x: hidden;
+  -webkit-text-size-adjust: 100%;
 }
 
 html,
@@ -56,7 +57,7 @@ button {
 .appShell {
   display: grid;
   grid-template-rows: auto auto minmax(0, 1fr);
-  height: 100vh;
+  height: 100dvh;
   min-height: 100vh;
   overflow: hidden;
   padding-bottom: 0;
@@ -183,6 +184,7 @@ button {
   box-shadow: var(--shadow);
   max-height: 360px;
   overflow: auto;
+  z-index: 30;
 }
 
 .searchBox:focus-within .suggestions {
@@ -582,6 +584,20 @@ button {
   padding: 22px 28px 104px;
 }
 
+.mainGrid.controlGrid {
+  grid-template-columns: minmax(0, 1fr);
+  max-width: min(1760px, calc(100vw - 36px));
+}
+
+.controlMode .content {
+  padding-right: 0;
+  padding-bottom: 32px;
+}
+
+.controlMode .floatingCart {
+  display: none;
+}
+
 .mainGrid > *,
 .content > *,
 .adminPanel,
@@ -630,7 +646,7 @@ button {
   max-height: 100%;
   overflow-y: auto;
   padding-right: 8px;
-  padding-bottom: 24px;
+  padding-bottom: 128px;
   scrollbar-gutter: stable;
 }
 
@@ -766,6 +782,7 @@ button {
 .productCard {
   position: relative;
   overflow: hidden;
+  min-width: 0;
 }
 
 .productSkeleton {
@@ -1042,7 +1059,7 @@ button {
 .bottomNav {
   position: fixed;
   right: 50%;
-  bottom: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom));
   z-index: 19;
   display: flex;
   max-width: calc(100vw - 32px);
@@ -1615,6 +1632,10 @@ button {
   gap: 18px;
 }
 
+.adminShell {
+  gap: 16px;
+}
+
 .adminEditorOverlay {
   justify-content: center;
   align-items: center;
@@ -1623,13 +1644,17 @@ button {
 
 .adminEditModal {
   width: min(920px, 100%);
-  max-height: min(88vh, 860px);
+  max-height: min(88dvh, 860px);
   overflow-y: auto;
   padding: 20px;
   background: white;
   border: 1px solid var(--line);
   border-radius: 22px;
   box-shadow: var(--shadow);
+}
+
+.adminEditModal.wide {
+  width: min(1180px, calc(100vw - 36px));
 }
 
 .modalForm {
@@ -1650,6 +1675,23 @@ button {
   border-radius: 22px;
 }
 
+.adminShell > .sectionHeader {
+  margin: 0;
+  padding: clamp(18px, 3vw, 28px);
+  overflow: hidden;
+  background:
+    radial-gradient(circle at 84% 16%, rgba(234, 255, 121, 0.38), transparent 26%),
+    radial-gradient(circle at 12% 80%, rgba(0, 169, 120, 0.28), transparent 30%),
+    linear-gradient(135deg, #071d18 0%, #0e3b30 62%, #11251e 100%);
+  border: 0;
+  box-shadow: 0 22px 60px rgba(7, 29, 24, 0.16);
+}
+
+.adminShell > .sectionHeader h2 {
+  font-size: clamp(28px, 4vw, 46px);
+  letter-spacing: -0.04em;
+}
+
 .adminWorkspace > .sectionHeader p {
   color: #cffff0;
 }
@@ -1659,14 +1701,14 @@ button {
   top: 0;
   z-index: 5;
   display: flex;
-  gap: 10px;
+  gap: 8px;
   margin: 0;
-  padding: 10px;
+  padding: 8px;
   overflow-x: auto;
-  background: rgba(9, 36, 29, 0.94);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(255, 255, 255, 0.88);
+  border: 1px solid var(--line);
   border-radius: 18px;
-  box-shadow: 0 18px 40px rgba(5, 27, 21, 0.16);
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.08);
   backdrop-filter: blur(14px);
   max-width: 100%;
   scrollbar-width: thin;
@@ -1676,20 +1718,21 @@ button {
   display: flex;
   gap: 9px;
   align-items: center;
-  flex: 0 0 clamp(150px, 17vw, 188px);
-  min-height: 58px;
-  padding: 10px 12px;
-  color: #d8fff0;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.12);
+  flex: 0 0 clamp(142px, 15vw, 178px);
+  min-height: 54px;
+  padding: 9px 11px;
+  color: #315245;
+  background: #f8fafc;
+  border: 1px solid #e1e8e5;
   border-radius: 12px;
   text-align: left;
 }
 
 .adminPageNav button.active {
-  color: #062118;
-  background: linear-gradient(135deg, #9dffd8, #eaff79);
+  color: white;
+  background: linear-gradient(135deg, #08785d, #0b3b31);
   border-color: transparent;
+  box-shadow: 0 14px 30px rgba(8, 120, 93, 0.22);
 }
 
 .adminPageNav span {
@@ -1703,17 +1746,23 @@ button {
 }
 
 .adminPageHeader {
-  display: grid;
-  gap: 4px;
+  display: flex;
+  gap: 14px;
+  align-items: center;
   margin: 0;
-  padding: 18px 20px;
+  padding: 14px 16px;
   color: var(--ink);
-  background: white;
-  border: 1px solid var(--line);
+  background: linear-gradient(135deg, #ffffff, #f6fffb);
+  border: 1px solid #d7f5e8;
   border-radius: 18px;
 }
 
 .adminPageHeader span {
+  flex: 0 0 auto;
+  padding: 7px 10px;
+  color: #063d2e;
+  background: #dff8ec;
+  border-radius: 999px;
   color: var(--mint-dark);
   font-weight: 800;
   text-transform: uppercase;
@@ -1725,9 +1774,10 @@ button {
   margin: 0;
 }
 
-.adminControlGrid {
+.adminControlGrid,
+.adminOverviewGrid {
   display: grid;
-  grid-template-columns: 1fr;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
   gap: 16px;
   margin-top: 0;
 }
@@ -1736,16 +1786,25 @@ button {
   display: grid;
   align-content: start;
   gap: 14px;
-  padding: 18px;
+  padding: 0;
   background: white;
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: 0 12px 30px rgba(15, 23, 42, 0.06);
+  border: 1px solid #dde8e4;
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
   overflow: hidden;
+}
+
+.adminPanel > div:first-child {
+  padding: 16px 18px 14px;
+  background:
+    radial-gradient(circle at top right, rgba(0, 169, 120, 0.12), transparent 35%),
+    #fbfefd;
+  border-bottom: 1px solid #e7f2ee;
 }
 
 .adminPanelBody {
   min-width: 0;
+  padding: 16px;
 }
 
 .adminPanel h3,
@@ -1766,6 +1825,36 @@ button {
   gap: 12px;
 }
 
+.adminSignalGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.adminSignalCard {
+  display: grid;
+  gap: 4px;
+  min-height: 112px;
+  padding: 14px;
+  color: #09382d;
+  background: linear-gradient(135deg, #e9fbf4, #f8fffc);
+  border: 1px solid #ccefe2;
+  border-radius: 16px;
+}
+
+.adminSignalCard span {
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.adminSignalCard strong {
+  font-size: clamp(24px, 3vw, 36px);
+  line-height: 1;
+}
+
 .opsRow,
 .metricRow {
   display: grid;
@@ -1773,30 +1862,61 @@ button {
   gap: 8px;
   align-items: center;
   padding: 12px;
-  background: #f8fafc;
-  border: 1px solid var(--line);
-  border-radius: 12px;
+  background: #f8fbfa;
+  border: 1px solid #e2ece8;
+  border-radius: 14px;
 }
 
 .userDetailRow {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
-  gap: 10px;
+  gap: 12px;
   align-items: center;
-  padding: 12px;
-  background: #f8fafc;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  padding: 14px;
+  background: linear-gradient(135deg, #ffffff, #f8fbfa);
+  border: 1px solid #e2ece8;
+  border-radius: 16px;
   text-align: left;
+}
+
+.adminUserList {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr));
+  gap: 12px;
+  align-items: stretch;
+}
+
+.adminUserList .userDetailRow {
+  grid-template-columns: 1fr;
+  align-content: start;
+  min-height: 156px;
+}
+
+.adminUserList .userRowActions {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  align-self: end;
+}
+
+.adminUserList .userRowActions button {
+  width: 100%;
 }
 
 .userSummaryButton {
   display: grid;
   gap: 4px;
+  min-width: 0;
   padding: 0;
   background: transparent;
   border: 0;
   text-align: left;
+}
+
+.userSummaryButton strong,
+.userSummaryButton span,
+.userSummaryButton small {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .userDetailRow span,
@@ -1815,14 +1935,14 @@ button {
 
 .userAdminToolbar {
   padding: 12px;
-  background: #f8fafc;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  background: #f8fbfa;
+  border: 1px solid #e2ece8;
+  border-radius: 16px;
 }
 
 .userAdminToolbar input {
   flex: 1;
-  min-width: 240px;
+  min-width: min(240px, 100%);
   min-height: 38px;
   padding: 0 10px;
   border: 1px solid var(--line);
@@ -1831,10 +1951,9 @@ button {
 
 .userAdminToolbar button,
 .userRowActions button {
-  min-height: 34px;
-  padding: 0 10px;
-  border: 0;
-  border-radius: 8px;
+  min-height: 36px;
+  padding: 0 12px;
+  border-radius: 999px;
   background: white;
   border: 1px solid var(--line);
   font-weight: 800;
@@ -1844,24 +1963,32 @@ button {
   display: grid;
   gap: 14px;
   margin: 0;
-  padding: 18px;
+  padding: clamp(14px, 2vw, 20px);
   background: white;
-  border: 1px solid var(--line);
-  border-radius: 18px;
+  border: 1px solid #dde8e4;
+  border-radius: 22px;
+  box-shadow: 0 14px 34px rgba(15, 23, 42, 0.06);
 }
 
 .adminUserInfoGrid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 190px), 1fr));
   gap: 10px;
 }
 
 .adminUserInfoGrid div {
   display: grid;
   gap: 5px;
-  padding: 10px;
-  background: var(--soft);
-  border-radius: 8px;
+  min-width: 0;
+  padding: 12px;
+  background: #f8fbfa;
+  border: 1px solid #e8f0ed;
+  border-radius: 14px;
+}
+
+.adminUserInfoGrid span {
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .adminUserInfoGrid span {
@@ -1877,13 +2004,13 @@ button {
 
 .adminOrderCard {
   display: grid;
-  grid-template-columns: minmax(240px, 1.2fr) minmax(220px, 1fr) auto;
+  grid-template-columns: minmax(220px, 1.15fr) minmax(180px, 0.95fr) minmax(180px, auto);
   gap: 12px;
   align-items: center;
   padding: 14px;
-  background: #f8fafc;
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  background: #f8fbfa;
+  border: 1px solid #e2ece8;
+  border-radius: 18px;
 }
 
 .adminOrderCard > div:first-child {
@@ -1912,8 +2039,28 @@ button {
   font-weight: 800;
 }
 
+.adminOrderCard > div:last-child {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.adminOrderCard > div:last-child button {
+  min-height: 34px;
+  padding: 0 10px;
+  background: white;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-weight: 800;
+}
+
 .opsRow {
-  grid-template-columns: 84px minmax(0, 1fr) minmax(150px, 1.2fr);
+  grid-template-columns: minmax(74px, auto) minmax(90px, 1fr) minmax(130px, 1.25fr);
+}
+
+.opsRow button {
+  min-width: 0;
 }
 
 .opsRow button {
@@ -1982,14 +2129,14 @@ button {
 .catalogToolbar,
 .bulkTools {
   display: grid;
-  grid-template-columns: minmax(220px, 1fr) minmax(220px, 360px) auto;
+  grid-template-columns: minmax(180px, 1fr) minmax(220px, 380px) auto;
   gap: 12px;
   align-items: center;
   margin-top: 16px;
   padding: 14px;
-  background: white;
-  border: 1px solid var(--line);
-  border-radius: 16px;
+  background: linear-gradient(135deg, #ffffff, #f8fbfa);
+  border: 1px solid #e2ece8;
+  border-radius: 18px;
 }
 
 .bulkTools {
@@ -2073,11 +2220,27 @@ button {
 
 .marketingCrud {
   display: grid;
-  gap: 10px;
+  gap: 12px;
   padding: 0;
   background: transparent;
   border: 0;
   border-radius: 0;
+}
+
+.marketingCrud > .formHeader {
+  align-items: center;
+  padding-bottom: 10px;
+}
+
+.marketingCrud ~ .metricRow {
+  display: none;
+}
+
+.marketingCrudList {
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .marketingForm {
@@ -2119,13 +2282,13 @@ button {
 
 .marketingRow {
   display: grid;
-  grid-template-columns: minmax(160px, 1fr) minmax(130px, 0.8fr) minmax(170px, 1fr) auto;
+  grid-template-columns: minmax(140px, 1.15fr) minmax(110px, 0.85fr) minmax(150px, 1.1fr) auto auto;
   gap: 8px 12px;
   align-items: center;
   padding: 12px;
-  background: #f8fafc;
-  border: 1px solid var(--line);
-  border-radius: 14px;
+  background: #f8fbfa;
+  border: 1px solid #e2ece8;
+  border-radius: 16px;
 }
 
 .marketingRow strong {
@@ -2140,6 +2303,39 @@ button {
 
 .marketingRow button {
   justify-self: end;
+  min-width: 74px;
+}
+
+.marketingRow .dangerButton {
+  color: #b42318;
+  background: #fff0ee;
+}
+
+.marketingCrudList .marketingRow {
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 4px 10px;
+  min-height: 70px;
+  overflow: hidden;
+}
+
+.marketingCrudList .marketingRow strong,
+.marketingCrudList .marketingRow span,
+.marketingCrudList .marketingRow small {
+  grid-column: 1;
+}
+
+.marketingCrudList .marketingRow button {
+  grid-row: 1 / span 3;
+  align-self: center;
+  justify-self: stretch;
+}
+
+.marketingCrudList .marketingRow button:first-of-type {
+  grid-column: 2;
+}
+
+.marketingCrudList .marketingRow button:last-of-type {
+  grid-column: 3;
 }
 
 .marketingRow span,
@@ -2153,10 +2349,13 @@ button {
 
 .reportBars {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  grid-template-columns: repeat(5, minmax(74px, 1fr));
   align-items: end;
   min-height: 110px;
   gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 4px;
+  scrollbar-width: thin;
 }
 
 .reportBars span {
@@ -2178,7 +2377,13 @@ button {
   align-items: flex-start;
   flex-direction: column;
   gap: 8px;
-  padding: 16px;
+  padding: 18px;
+  min-height: 130px;
+  background:
+    radial-gradient(circle at top right, rgba(0, 169, 120, 0.12), transparent 34%),
+    white;
+  border-color: #dce9e5;
+  border-radius: 18px;
 }
 
 .statCard span {
@@ -2186,18 +2391,20 @@ button {
 }
 
 .statCard strong {
-  font-size: 22px;
+  font-size: clamp(22px, 3vw, 30px);
 }
 
 .adminTable {
   display: grid;
   gap: 0;
   margin-top: 16px;
-  overflow: hidden;
+  overflow: auto hidden;
+  scrollbar-width: thin;
 }
 
 .adminRow {
-  grid-template-columns: 54px 1fr auto 58px auto;
+  grid-template-columns: 54px minmax(0, 1fr) auto 58px auto;
+  min-width: 620px;
   padding: 12px;
   border-bottom: 1px solid var(--line);
 }
@@ -2575,6 +2782,14 @@ button {
   min-height: 0;
   max-height: 92vh;
   object-fit: cover;
+}
+
+.productModal > .productImageFrame,
+.productModal > .productImageFallback {
+  width: 100%;
+  height: 100%;
+  min-height: min(520px, 92vh);
+  border-radius: 0;
 }
 
 .productModalBody {
@@ -3342,7 +3557,7 @@ button {
 
 .adminForm {
   margin: 0;
-  padding: 18px;
+  padding: clamp(14px, 2vw, 18px);
   background: white;
   border: 1px solid var(--line);
   border-radius: 18px;
@@ -3356,6 +3571,10 @@ button {
   align-items: flex-start;
   padding-bottom: 12px;
   border-bottom: 1px solid var(--line);
+}
+
+.formHeader > div {
+  min-width: 0;
 }
 
 .formHeader h3 {
@@ -3401,12 +3620,12 @@ button {
 }
 
 .crudCard {
-  grid-template-columns: 74px minmax(0, 1fr) auto;
+  grid-template-columns: 78px minmax(0, 1fr) minmax(190px, auto);
   align-items: center;
   padding: 14px;
   background: white;
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 18px;
 }
 
 .crudCard img,
@@ -3430,6 +3649,7 @@ button {
   flex-wrap: wrap;
   align-items: center;
   justify-content: flex-end;
+  min-width: 0;
 }
 
 .crudActions button,
@@ -3452,7 +3672,7 @@ button {
     height: auto;
     min-height: 100vh;
     overflow: visible;
-    padding-bottom: 92px;
+    padding-bottom: 112px;
   }
 
   .topbar {
@@ -3473,20 +3693,20 @@ button {
   .mainGrid {
     min-height: auto;
     overflow: visible;
-    padding: 18px 18px 96px;
+    padding: 18px 18px 120px;
   }
 
   .categoryRail {
     position: sticky;
     top: 122px;
-    max-height: calc(100vh - 220px);
+    max-height: calc(100dvh - 220px);
   }
 
   .content {
     max-height: none;
     overflow: visible;
     padding-right: 0;
-    padding-bottom: 0;
+    padding-bottom: 24px;
   }
 
   .productGrid {
@@ -3506,8 +3726,8 @@ button {
   }
 
   .adminPageNav button {
-    flex-basis: clamp(142px, 16vw, 176px);
-    min-height: 54px;
+    flex-basis: clamp(132px, 15vw, 166px);
+    min-height: 50px;
   }
 
   .adminPageNav small {
@@ -3515,12 +3735,24 @@ button {
   }
 
   .adminPanel {
-    padding: 16px;
+    border-radius: 18px;
   }
 
   .marketingRow {
-    grid-template-columns: minmax(150px, 1fr) minmax(120px, 0.7fr) minmax(150px, 1fr) auto;
+    grid-template-columns: minmax(150px, 1fr) minmax(120px, 0.7fr) minmax(150px, 1fr);
     padding: 11px;
+  }
+
+  .marketingRow button {
+    justify-self: stretch;
+  }
+
+  .adminOrderCard {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .adminOrderCard > div:last-child {
+    justify-content: flex-start;
   }
 
   .productModal {
@@ -3585,7 +3817,7 @@ button {
 
   .adminEditModal {
     width: min(760px, calc(100vw - 24px));
-    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
     padding: 16px;
   }
 
@@ -3595,6 +3827,11 @@ button {
 
   .adminPageNav {
     top: 0;
+  }
+
+  .adminPageHeader {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .promoCard {
@@ -3622,7 +3859,7 @@ button {
   .productModal {
     grid-template-columns: 1fr;
     width: min(720px, calc(100vw - 24px));
-    max-height: calc(100vh - 24px);
+    max-height: calc(100dvh - 24px);
     overflow: auto;
   }
 
@@ -3650,7 +3887,26 @@ button {
     grid-column: 1 / -1;
   }
 
+  .crudCard {
+    grid-template-columns: 70px minmax(0, 1fr);
+  }
+
+  .crudCard .crudActions {
+    grid-column: 1 / -1;
+    justify-content: stretch;
+  }
+
+  .crudCard .crudActions button {
+    flex: 1 1 120px;
+  }
+
   .productModal > img {
+    min-height: 280px;
+    max-height: 320px;
+  }
+
+  .productModal > .productImageFrame,
+  .productModal > .productImageFallback {
     min-height: 280px;
     max-height: 320px;
   }
@@ -3670,6 +3926,10 @@ button {
     padding: 12px;
   }
 
+  .brandBlock strong {
+    font-size: 18px;
+  }
+
   .brandMark {
     width: 44px;
     height: 44px;
@@ -3682,6 +3942,13 @@ button {
   .searchBox {
     display: grid;
     grid-template-columns: auto 1fr;
+    gap: 8px;
+    padding: 10px 12px;
+  }
+
+  .suggestions {
+    max-height: min(58vh, 380px);
+    border-radius: 14px;
   }
 
   .headerActions {
@@ -3747,10 +4014,89 @@ button {
     grid-template-columns: 1fr;
   }
 
+  .adminShell > .sectionHeader {
+    padding: 18px;
+    border-radius: 18px;
+  }
+
+  .adminPageNav {
+    margin-inline: -2px;
+    border-radius: 14px;
+  }
+
+  .adminPageNav button {
+    flex-basis: 118px;
+    min-height: 48px;
+  }
+
+  .adminPageNav button svg {
+    display: none;
+  }
+
+  .adminPageHeader {
+    padding: 12px;
+    border-radius: 14px;
+  }
+
+  .adminPanel > div:first-child,
+  .adminPanelBody {
+    padding: 14px;
+  }
+
+  .adminPanel,
+  .adminUserDetails {
+    border-radius: 16px;
+  }
+
   .opsRow > *,
   .metricRow > *,
   .marketingRow > * {
     justify-self: stretch;
+  }
+
+  .opsRow button,
+  .metricRow button,
+  .marketingRow button,
+  .userRowActions button,
+  .adminOrderCard > div:last-child button {
+    width: 100%;
+  }
+
+  .userDetailRow {
+    align-items: stretch;
+  }
+
+  .userRowActions {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+  }
+
+  .userAdminToolbar {
+    display: grid;
+    grid-template-columns: 1fr;
+  }
+
+  .userAdminToolbar button,
+  .userAdminToolbar span {
+    width: 100%;
+  }
+
+  .adminOrderCard > div:last-child {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
+  }
+
+  .catalogToolbar,
+  .bulkTools {
+    grid-template-columns: 1fr;
+    margin-top: 12px;
+    padding: 12px;
+  }
+
+  .marketingCrud > .formHeader,
+  .formHeader {
+    align-items: stretch;
+    flex-direction: column;
   }
 
   .mobileHero {
@@ -3764,6 +4110,18 @@ button {
 
   .deliveryStrip span {
     width: 100%;
+  }
+
+  .modifyLine {
+    grid-template-columns: 1fr auto auto;
+  }
+
+  .modifyLine span {
+    grid-column: 1 / -1;
+  }
+
+  .reportBars {
+    grid-template-columns: repeat(5, minmax(72px, 1fr));
   }
 
   .productModalBody {
@@ -3781,7 +4139,9 @@ button {
   .bottomNav {
     left: 8px;
     right: 8px;
-    bottom: 8px;
+    bottom: calc(8px + env(safe-area-inset-bottom));
+    max-width: calc(100vw - 16px);
+    padding: 6px;
     overflow-x: auto;
     transform: none;
   }
@@ -3801,15 +4161,15 @@ button {
   .trackingModal {
     width: 100%;
     max-width: 100%;
-    max-height: 100vh;
-    height: 100%;
+    max-height: 100dvh;
+    height: 100dvh;
     margin: 0;
     border-radius: 0;
   }
 
   .drawer {
     padding: 14px;
-    padding-bottom: 92px;
+    padding-bottom: calc(104px + env(safe-area-inset-bottom));
   }
 
   .drawerHeader {
@@ -3832,6 +4192,12 @@ button {
   }
 
   .productModal > img {
+    min-height: 220px;
+    max-height: 260px;
+  }
+
+  .productModal > .productImageFrame,
+  .productModal > .productImageFallback {
     min-height: 220px;
     max-height: 260px;
   }
@@ -3909,19 +4275,55 @@ button {
 
   .adminEditModal {
     width: 100%;
-    max-height: calc(100vh - 18px);
+    max-height: 100dvh;
     padding: 14px;
-    border-radius: 18px;
+    border-radius: 0;
   }
 
   .adminPageNav button {
-    flex-basis: 150px;
+    flex-basis: 118px;
   }
 }
 
 @media (max-width: 420px) {
   .cartLine {
     grid-template-columns: 58px minmax(0, 1fr);
+  }
+
+  .brandBlock {
+    align-items: flex-start;
+  }
+
+  .brandMark {
+    width: 40px;
+    height: 40px;
+    font-size: 26px;
+  }
+
+  .brandBlock strong {
+    font-size: 17px;
+  }
+
+  .topbar {
+    padding: 10px;
+  }
+
+  .headerActions > * {
+    flex: 1 1 calc(50% - 6px);
+  }
+
+  .cartButton {
+    flex-basis: 100%;
+  }
+
+  .mainGrid {
+    padding-inline: 10px;
+  }
+
+  .categoryItem {
+    min-width: 78px;
+    min-height: 74px;
+    font-size: 0.84rem;
   }
 
   .cartLine .productImageWrap,
@@ -3953,5 +4355,149 @@ button {
     max-width: 96px;
     overflow: hidden;
     text-overflow: ellipsis;
+  }
+
+  .drawerRecommendations button {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
+
+  .drawerRecommendations button b {
+    grid-column: 2;
+    justify-self: start;
+  }
+
+  .couponChooser {
+    padding: 10px;
+  }
+
+  .couponHeader {
+    align-items: flex-start;
+  }
+
+  .couponHeader svg {
+    display: none;
+  }
+
+  .toast {
+    top: 8px;
+    right: 8px;
+    left: 8px;
+    justify-content: center;
+  }
+}
+
+@media (min-width: 1180px) {
+  .controlMode .bottomNav {
+    display: none;
+  }
+
+  .controlMode .mainGrid {
+    padding-bottom: 28px;
+  }
+
+  .controlMode .content {
+    padding-bottom: 28px;
+  }
+
+  .adminShell {
+    width: 100%;
+    max-width: none;
+    gap: 18px;
+  }
+
+  .adminShell > .sectionHeader {
+    display: grid;
+    grid-template-columns: minmax(0, 1.25fr) minmax(300px, 0.75fr);
+    align-items: end;
+    min-height: 148px;
+  }
+
+  .adminShell > .sectionHeader p {
+    max-width: 520px;
+    justify-self: end;
+    text-align: right;
+  }
+
+  .adminPageNav {
+    display: grid;
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+    overflow: visible;
+  }
+
+  .adminPageNav button {
+    flex: initial;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .adminStats {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  .adminControlGrid,
+  .adminOverviewGrid {
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    align-items: stretch;
+  }
+
+  .adminPanel {
+    grid-column: span 4;
+    min-height: 100%;
+  }
+
+  .adminPanel.wide {
+    grid-column: span 6;
+  }
+
+  .adminPanel.full {
+    grid-column: 1 / -1;
+  }
+
+  .adminPanel.compact {
+    grid-column: span 4;
+  }
+
+  .adminPanelBody {
+    padding: 14px;
+  }
+
+  .userDetailRow {
+    grid-template-columns: minmax(0, 1fr) minmax(300px, auto);
+  }
+
+  .adminCrudList {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminCrudList.compact {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (min-width: 1500px) {
+  .adminStats {
+    grid-template-columns: repeat(8, minmax(0, 1fr));
+  }
+
+  .adminCrudList {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media (max-width: 760px) {
+  .marketingCrudList .marketingRow {
+    grid-template-columns: 1fr;
+  }
+
+  .marketingCrudList .marketingRow strong,
+  .marketingCrudList .marketingRow span,
+  .marketingCrudList .marketingRow small,
+  .marketingCrudList .marketingRow button {
+    grid-column: 1;
+    grid-row: auto;
+  }
+
+  .marketingCrudList .marketingRow button {
+    width: 100%;
   }
 }

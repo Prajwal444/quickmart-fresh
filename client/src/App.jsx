@@ -989,8 +989,10 @@ function App() {
     }
   };
 
+  const isControlView = (activeView === "admin" && user?.role === "admin") || activeView === "features" || activeView === "driver";
+
   return (
-    <div className="appShell">
+    <div className={isControlView ? "appShell controlMode" : "appShell"}>
       {message && (
         <button className="toast" onClick={() => setMessage("")}>
           {message}
@@ -1084,56 +1086,62 @@ function App() {
         </div>
       </header>
 
-      <section className="mobileHero">
-        <button title={currentLocation?.area || "Choose delivery location"} onClick={() => setIsAddressOpen(true)}>
-          <MapPin size={18} />
-          Deliver to {currentLocation?.area || user?.addresses?.[0]?.area || "current location"}
-        </button>
-        <button onClick={() => setActiveView("orders")}>
-          <Navigation size={18} />
-          Track order
-        </button>
-      </section>
-
-      <main className="mainGrid">
-        <aside className="categoryRail">
-          <button
-            className={activeCategory === "All" ? "categoryItem active" : "categoryItem"}
-            onClick={() => setActiveCategory("All")}
-          >
-            <span>All</span>
-            All
+      {!isControlView && (
+        <section className="mobileHero">
+          <button title={currentLocation?.area || "Choose delivery location"} onClick={() => setIsAddressOpen(true)}>
+            <MapPin size={18} />
+            Deliver to {currentLocation?.area || user?.addresses?.[0]?.area || "current location"}
           </button>
-          {categories.map((category) => (
+          <button onClick={() => setActiveView("orders")}>
+            <Navigation size={18} />
+            Track order
+          </button>
+        </section>
+      )}
+
+      <main className={isControlView ? "mainGrid controlGrid" : "mainGrid"}>
+        {!isControlView && (
+          <aside className="categoryRail">
             <button
-              key={category.name}
-              className={activeCategory === category.name ? "categoryItem active" : "categoryItem"}
-              onClick={() => {
-                setActiveCategory(category.name);
-                setActiveView("categories");
-              }}
+              className={activeCategory === "All" ? "categoryItem active" : "categoryItem"}
+              onClick={() => setActiveCategory("All")}
             >
-              <span>{category.icon}</span>
-              {category.name}
+              <span>All</span>
+              All
             </button>
-          ))}
-        </aside>
+            {categories.map((category) => (
+              <button
+                key={category.name}
+                className={activeCategory === category.name ? "categoryItem active" : "categoryItem"}
+                onClick={() => {
+                  setActiveCategory(category.name);
+                  setActiveView("categories");
+                }}
+              >
+                <span>{category.icon}</span>
+                {category.name}
+              </button>
+            ))}
+          </aside>
+        )}
 
         <section className="content">
-          <div className="deliveryStrip">
-            <span>
-              <Clock3 size={18} />
-              Delivery in {currentLocation?.eta || "10 mins"}
-            </span>
-            <span>
-              <ShieldCheck size={18} />
-              Replacement available on eligible items
-            </span>
-            <span>
-              <WalletCards size={18} />
-              QuickPass savings applied at checkout
-            </span>
-          </div>
+          {!isControlView && (
+            <div className="deliveryStrip">
+              <span>
+                <Clock3 size={18} />
+                Delivery in {currentLocation?.eta || "10 mins"}
+              </span>
+              <span>
+                <ShieldCheck size={18} />
+                Replacement available on eligible items
+              </span>
+              <span>
+                <WalletCards size={18} />
+                QuickPass savings applied at checkout
+              </span>
+            </div>
+          )}
 
           {activeView === "outOfService" ? (
             <OutOfServiceView
@@ -3330,7 +3338,7 @@ const featureMatrix = [
 function FeatureMatrixView() {
   const complete = featureMatrix.filter((item) => item.status === "Live").length;
   return (
-    <section>
+    <section className="adminWorkspace adminShell">
       <div className="sectionHeader">
         <h2>Feature coverage map</h2>
         <p>{complete} live modules, plus improved/simulated modules for a fuller quick-commerce clone.</p>
@@ -4541,9 +4549,23 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
     { key: "reports", label: "Reports", icon: ReceiptText, description: "Revenue and retention metrics" },
     { key: "system", label: "System", icon: ShieldCheck, description: "Staff, partners and controls" },
   ];
+  const liveOrders = summary?.liveOrders || [];
+  const recentCustomers = adminUsers.slice(0, 6);
+  const inventoryWatchlist = (
+    summary?.reports?.topInventory?.length
+      ? summary.reports.topInventory
+      : products
+          .filter((product) => Number(product.stock || 0) <= 12)
+          .map((product) => ({
+            name: product.name,
+            stock: product.stock,
+            turnover: Number(product.stock || 0) <= 5 ? "Critical stock" : "Stock watch",
+          }))
+  ).slice(0, 6);
+  const citySnapshot = (summary?.cityAnalytics || []).slice(0, 4);
 
   return (
-    <section>
+    <section className="adminWorkspace adminShell">
       <div className="sectionHeader">
         <h2>Admin super control system</h2>
         <p>Operations, users, delivery, catalog, promotions, banners and reports in one place.</p>
@@ -4581,6 +4603,87 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
         <Stat icon={RotateCcw} label="Retention" value={`${summary?.retentionRate || 0}%`} />
         <Stat icon={SlidersHorizontal} label="Conversion" value={`${summary?.conversionRate || 0}%`} />
       </div>
+
+      {adminPage === "overview" && (
+        <div className="adminOverviewGrid">
+          <AdminPanel title="Live command feed" subtitle="Orders needing action right now." variant="wide">
+            {liveOrders.length ? (
+              liveOrders.slice(0, 6).map((order) => (
+                <div className="opsRow" key={`overview-${order._id}`}>
+                  <span>#{shortOrderId(order)}</span>
+                  <strong>{order.status}</strong>
+                  <small>{safeOrderItems(order).length} items - {currency.format(order.total)}</small>
+                  <button onClick={() => updateOrderStatus(order._id, "Packing")}>Packing</button>
+                  <button onClick={() => updateOrderStatus(order._id, "Out for delivery")}>Dispatch</button>
+                  <button onClick={() => updateOrderStatus(order._id, "Delivered")}>Delivered</button>
+                </div>
+              ))
+            ) : (
+              <p>No live orders right now.</p>
+            )}
+          </AdminPanel>
+
+          <AdminPanel title="Customer activity" subtitle="Latest users, roles and account status." variant="wide">
+            {recentCustomers.length ? (
+              recentCustomers.map((customer) => (
+                <div className="metricRow" key={`overview-user-${customer._id}`}>
+                  <strong>{customer.name}</strong>
+                  <span>{customer.role}</span>
+                  <small>{customer.status || "active"} - {customer.loyalty?.points || 0} points</small>
+                </div>
+              ))
+            ) : (
+              <p>No customer records loaded yet.</p>
+            )}
+          </AdminPanel>
+
+          <AdminPanel title="Inventory watchlist" subtitle="Low stock and fast-moving products." variant="wide">
+            {inventoryWatchlist.length ? (
+              inventoryWatchlist.map((item) => (
+                <div className="metricRow" key={`overview-inventory-${item.name}`}>
+                  <strong>{item.name}</strong>
+                  <span>{item.stock} left</span>
+                  <small>{item.turnover || "Inventory signal"}</small>
+                </div>
+              ))
+            ) : (
+              <p>Inventory looks healthy for the visible catalog.</p>
+            )}
+          </AdminPanel>
+
+          <AdminPanel title="Market snapshot" subtitle="City, delivery and growth signals." variant="wide">
+            <div className="adminSignalGrid">
+              <div className="adminSignalCard">
+                <span>Active orders</span>
+                <strong>{summary?.activeOrderCount || liveOrders.length || 0}</strong>
+                <small>Orders currently in the pipeline</small>
+              </div>
+              <div className="adminSignalCard">
+                <span>Avg delivery</span>
+                <strong>{summary?.avgDeliveryMinutes || 0} min</strong>
+                <small>Across serviceable zones</small>
+              </div>
+              <div className="adminSignalCard">
+                <span>Conversion</span>
+                <strong>{summary?.conversionRate || 0}%</strong>
+                <small>Cart to order rate</small>
+              </div>
+              <div className="adminSignalCard">
+                <span>Retention</span>
+                <strong>{summary?.retentionRate || 0}%</strong>
+                <small>Repeat purchase health</small>
+              </div>
+            </div>
+            {citySnapshot.map((city) => (
+              <div className="metricRow" key={`overview-city-${city.city}`}>
+                <strong>{city.city}</strong>
+                <span>{city.orders} orders</span>
+                <small>{currency.format(city.revenue)} - {city.eta} min ETA</small>
+              </div>
+            ))}
+          </AdminPanel>
+        </div>
+      )}
 
       <div className="adminControlGrid">
         <AdminPanel page="operations" activePage={adminPage} title="Live orders monitoring" subtitle="Move orders through the ops pipeline.">
@@ -4620,31 +4723,34 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
           ))}
         </AdminPanel>
 
-        <AdminPanel page="users" activePage={adminPage} title="Customer accounts" subtitle="Recent customers and account health.">
+        <AdminPanel page="users" activePage={adminPage} variant="full" title="Customer accounts" subtitle="Recent customers and account health.">
           <div className="userAdminToolbar">
             <input value={adminUserSearch} placeholder="Search users by name, email, phone, role" onChange={(event) => setAdminUserSearch(event.target.value)} />
             <button type="button" onClick={startUserCreate}>Create user</button>
             <span>{filteredAdminUsers.length} of {adminUsers.length} users</span>
           </div>
           {adminUserNotice && <p className="adminNotice">{adminUserNotice}</p>}
-          {filteredAdminUsers.map((customer) => (
-            <div className="userDetailRow" key={customer._id}>
-              <button type="button" className="userSummaryButton" onClick={() => openUserDetails(customer)}>
-                <strong>{customer.name}</strong>
-                <span>{customer.email}</span>
-                <small>{customer.phone || "No phone"} · {customer.role} · {customer.status || "active"} · {customer.loyalty?.points || 0} points</small>
-              </button>
-              <div className="userRowActions">
-                <button type="button" onClick={() => startUserEdit(customer)}>Edit</button>
-                {customer.status === "deactivated" ? (
-                  <button type="button" onClick={() => reactivateUser(customer._id)} disabled={saving === customer._id}>Reactivate</button>
-                ) : (
-                  <button type="button" onClick={() => deactivateUser(customer._id)} disabled={saving === customer._id}>Deactivate</button>
-                )}
-                <button type="button" className="dangerButton" onClick={() => deleteUser(customer._id)} disabled={saving === customer._id}>Delete</button>
+          <div className="adminUserList">
+            {filteredAdminUsers.map((customer) => (
+              <div className="userDetailRow" key={customer._id}>
+                <button type="button" className="userSummaryButton" onClick={() => openUserDetails(customer)}>
+                  <strong>{customer.name}</strong>
+                  <span>{customer.email}</span>
+                  <small>{customer.phone || "No phone"} - {customer.role} - {customer.status || "active"} - {customer.loyalty?.points || 0} points</small>
+                </button>
+                <div className="userRowActions">
+                  <button type="button" onClick={() => openUserDetails(customer)}>Details</button>
+                  <button type="button" onClick={() => startUserEdit(customer)}>Edit</button>
+                  {customer.status === "deactivated" ? (
+                    <button type="button" onClick={() => reactivateUser(customer._id)} disabled={saving === customer._id}>Reactivate</button>
+                  ) : (
+                    <button type="button" onClick={() => deactivateUser(customer._id)} disabled={saving === customer._id}>Deactivate</button>
+                  )}
+                  <button type="button" className="dangerButton" onClick={() => deleteUser(customer._id)} disabled={saving === customer._id}>Delete</button>
+                </div>
               </div>
-            </div>
-          ))}
+            ))}
+          </div>
           {!filteredAdminUsers.length && <p className="emptyInline">No users match this search.</p>}
         </AdminPanel>
 
@@ -4704,7 +4810,7 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
           />
         </AdminPanel>
 
-        <AdminPanel page="catalog" activePage={adminPage} title="Category management" subtitle="Add/edit/remove category tiles for the storefront.">
+        <AdminPanel page="catalog" activePage={adminPage} variant="full" title="Category management" subtitle="Add/edit/remove category tiles for the storefront.">
           <button type="button" className="primaryButton adminCreateButton" onClick={() => {
             setEditingCategoryName("");
             setCategoryForm({ name: "", icon: "ðŸ›’", accent: "#16a34a" });
@@ -4742,7 +4848,7 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
           </div>
         </AdminPanel>
 
-        <AdminPanel page="marketing" activePage={adminPage} title="Promotions and marketing" subtitle="Coupons and campaigns for conversion.">
+        <AdminPanel page="marketing" activePage={adminPage} variant="wide" title="Promotions and marketing" subtitle="Coupons and campaigns for conversion.">
           <MarketingCrud
             type="coupons"
             title="Coupon CRUD"
@@ -4781,7 +4887,7 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
           ))}
         </AdminPanel>
 
-        <AdminPanel page="marketing" activePage={adminPage} title="Banner management" subtitle="Home screen ads and placement controls.">
+        <AdminPanel page="marketing" activePage={adminPage} variant="wide" title="Banner management" subtitle="Home screen ads and placement controls.">
           <MarketingCrud
             type="banners"
             title="Banner CRUD"
@@ -4802,7 +4908,7 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
           ))}
         </AdminPanel>
 
-        <AdminPanel page="reports" activePage={adminPage} title="Reports and analytics" subtitle="Revenue, conversion, retention and inventory turnover.">
+        <AdminPanel page="reports" activePage={adminPage} variant="full" title="Reports and analytics" subtitle="Revenue, conversion, retention and inventory turnover.">
           <div className="reportBars">
             {(summary?.reports?.revenueByDay || []).map((item) => (
               <span key={item.label} style={{ "--height": `${Math.max(18, item.value / 260)}px` }}>
@@ -4876,12 +4982,21 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
         </AdminEditModal>
       )}
 
-      {adminPage === "users" && selectedAdminUser && (
-        <section className="adminUserDetails">
+      {adminPage === "users" && selectedAdminUser && !adminEditor && (
+        <AdminEditModal
+          title="Full user details"
+          subtitle={`${selectedAdminUser.name} - ${selectedAdminUser.email}`}
+          size="wide"
+          onClose={() => {
+            setSelectedAdminUser(null);
+            setEditingUserId("");
+          }}
+        >
+        <section className="adminUserDetails modalUserDetails">
           <div className="formHeader">
             <div>
-              <h3>Full user details</h3>
-              <p>{selectedAdminUser.name} · {selectedAdminUser.email}</p>
+              <h3>Profile controls</h3>
+              <p>View account data, manage status, and control this user's orders.</p>
             </div>
             <div className="crudActions">
               {selectedAdminUser.status === "deactivated" ? (
@@ -4940,6 +5055,7 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
             {!selectedAdminUser.orders?.length && <p className="emptyInline">No orders for this user yet. Create one from the button above.</p>}
           </div>
         </section>
+        </AdminEditModal>
       )}
 
       {adminEditor === "userOrder" && selectedAdminUser && (
@@ -5111,11 +5227,11 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
   );
 }
 
-function AdminPanel({ title, subtitle, children, page, activePage }) {
+function AdminPanel({ title, subtitle, children, page, activePage, variant = "" }) {
   if (page && activePage && page !== activePage) return null;
 
   return (
-    <article className="adminPanel">
+    <article className={["adminPanel", variant].filter(Boolean).join(" ")}>
       <div>
         <h3>{title}</h3>
         <p>{subtitle}</p>
@@ -5125,10 +5241,10 @@ function AdminPanel({ title, subtitle, children, page, activePage }) {
   );
 }
 
-function AdminEditModal({ title, subtitle, children, onClose }) {
+function AdminEditModal({ title, subtitle, children, onClose, size = "" }) {
   return (
     <div className="overlay adminEditorOverlay">
-      <section className="adminEditModal">
+      <section className={["adminEditModal", size].filter(Boolean).join(" ")}>
         <div className="drawerHeader">
           <div>
             <h2>{title}</h2>
@@ -5250,7 +5366,7 @@ function MarketingCrud({ type, title, items, form, setForm, editingId, setEditin
           </div>
         </AdminEditModal>
       )}
-      <div className="adminCrudList compact">
+      <div className="marketingCrudList">
         {(items || []).map((item) => (
           <div className="marketingRow" key={idOf(item)}>
             <strong>{item.code || item.name || item.title}</strong>
