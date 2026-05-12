@@ -598,6 +598,14 @@ button {
   display: none;
 }
 
+.controlMode .cartButton {
+  display: none;
+}
+
+.controlMode .headerActions {
+  justify-content: flex-end;
+}
+
 .mainGrid > *,
 .content > *,
 .adminPanel,
@@ -1101,15 +1109,18 @@ button {
   padding: 18px;
   background: rgba(15, 23, 42, 0.35);
   overflow: auto;
+  overscroll-behavior: contain;
 }
 
 .drawer,
 .checkoutModal {
   width: min(470px, 100vw);
-  height: 100%;
+  height: calc(100dvh - 36px);
+  max-height: calc(100dvh - 36px);
   padding: 18px;
   overflow: auto;
   border-radius: 8px 0 0 8px;
+  scrollbar-gutter: stable;
 }
 
 .checkoutModal {
@@ -1743,6 +1754,112 @@ button {
 .adminPageNav small {
   color: currentColor;
   opacity: 0.74;
+}
+
+.adminCommandBar {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(300px, 1.2fr) auto;
+  gap: 12px;
+  align-items: stretch;
+  padding: 14px;
+  background:
+    radial-gradient(circle at top left, rgba(234, 255, 121, 0.18), transparent 26%),
+    linear-gradient(135deg, #ffffff, #f4fffb);
+  border: 1px solid #d7f5e8;
+  border-radius: 20px;
+  box-shadow: 0 16px 36px rgba(15, 23, 42, 0.07);
+}
+
+.adminCommandTitle,
+.adminCommandMetric {
+  display: grid;
+  gap: 4px;
+}
+
+.adminCommandTitle {
+  align-content: center;
+  min-width: 0;
+}
+
+.adminCommandTitle span,
+.adminCommandMetric span {
+  color: var(--mint-dark);
+  font-size: 0.78rem;
+  font-weight: 950;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+.adminCommandTitle strong {
+  color: var(--ink);
+  font-size: clamp(20px, 2vw, 28px);
+  line-height: 1.05;
+}
+
+.adminCommandTitle small {
+  color: var(--muted);
+}
+
+.adminCommandMetrics {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+  min-width: 0;
+}
+
+.adminCommandMetric {
+  min-width: 0;
+  padding: 12px;
+  background: white;
+  border: 1px solid #e2ece8;
+  border-radius: 16px;
+}
+
+.adminCommandMetric strong {
+  font-size: 1.45rem;
+  line-height: 1;
+}
+
+.adminCommandMetric.hot {
+  border-color: #fecaca;
+  background: #fff7f7;
+}
+
+.adminCommandMetric.warn {
+  border-color: #fde68a;
+  background: #fffbeb;
+}
+
+.adminCommandActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-content: center;
+  justify-content: flex-end;
+}
+
+.adminCommandActions button {
+  display: inline-flex;
+  gap: 7px;
+  align-items: center;
+  min-height: 40px;
+  padding: 0 12px;
+  color: #063d2e;
+  background: white;
+  border: 1px solid #cfe7de;
+  border-radius: 999px;
+  font-weight: 900;
+}
+
+.adminCommandActions button:first-child {
+  color: white;
+  background: var(--mint-dark);
+  border-color: var(--mint-dark);
+}
+
+.adminCommandActions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.68;
 }
 
 .adminPageHeader {
@@ -2639,7 +2756,14 @@ button {
   text-align: center;
   color: var(--muted);
   background: var(--soft);
+  border: 1px dashed #c9ded6;
   border-radius: 8px;
+}
+
+.productGrid > .emptyState,
+.ordersList > .emptyState {
+  grid-column: 1 / -1;
+  min-height: 260px;
 }
 
 .emptyState h3 {
@@ -3834,6 +3958,22 @@ button {
     flex-direction: column;
   }
 
+  .adminCommandBar {
+    grid-template-columns: 1fr;
+  }
+
+  .adminCommandMetrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .adminCommandActions {
+    justify-content: stretch;
+  }
+
+  .adminCommandActions button {
+    flex: 1 1 140px;
+  }
+
   .promoCard {
     min-height: 210px;
   }
@@ -4387,6 +4527,10 @@ button {
 }
 
 @media (min-width: 1180px) {
+  .controlMode .topbar {
+    grid-template-columns: minmax(250px, 0.75fr) minmax(420px, 1.3fr) minmax(220px, auto);
+  }
+
   .controlMode .bottomNav {
     display: none;
   }
@@ -4428,6 +4572,10 @@ button {
     flex: initial;
     width: 100%;
     min-width: 0;
+  }
+
+  .adminCommandBar {
+    grid-template-columns: minmax(240px, 0.9fr) minmax(420px, 1.35fr) minmax(260px, auto);
   }
 
   .adminStats {

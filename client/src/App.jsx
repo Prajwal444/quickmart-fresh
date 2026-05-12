@@ -78,6 +78,70 @@ const fallbackCoupons = [
   { code: "FREESHIP", title: "Free delivery", detail: "Unlocks delivery fee waiver" },
 ];
 
+const categoryIconMap = {
+  "baby care": "🍼",
+  bakery: "🍞",
+  beauty: "🧴",
+  breakfast: "🥣",
+  dairy: "🥛",
+  drinks: "🧃",
+  electronics: "🔋",
+  fashion: "👗",
+  fresh: "🥬",
+  fruits: "🍎",
+  frozen: "🧊",
+  grocery: "🛍️",
+  health: "💊",
+  "home care": "🧽",
+  "instant food": "🍜",
+  "meat & eggs": "🥚",
+  paan: "🍃",
+  "paan corner": "🍃",
+  "personal care": "🧴",
+  "pet care": "🐾",
+  snacks: "🍿",
+  stationary: "✏️",
+  stationery: "✏️",
+  vegetables: "🥦",
+};
+
+const categoryAccentMap = {
+  "baby care": "#f472b6",
+  bakery: "#d97706",
+  beauty: "#c026d3",
+  dairy: "#0ea5e9",
+  drinks: "#06b6d4",
+  electronics: "#475569",
+  fashion: "#1e3a8a",
+  fresh: "#16a34a",
+  frozen: "#0284c7",
+  grocery: "#92400e",
+  health: "#0f766e",
+  "home care": "#0891b2",
+  "instant food": "#b45309",
+  "meat & eggs": "#be123c",
+  "paan corner": "#047857",
+  "personal care": "#7c3aed",
+  snacks: "#be185d",
+  stationery: "#4f46e5",
+};
+
+const categoryKey = (name = "") => String(name).trim().toLowerCase();
+
+const getCategoryIcon = (category = {}) => {
+  const name = category.name || category;
+  const icon = String(category.icon || "").trim();
+  const mappedIcon = categoryIconMap[categoryKey(name)];
+  const looksLikeInitials = /^[A-Z]{1,3}$/i.test(icon) && icon.toLowerCase() !== "all";
+  return mappedIcon || (!icon || looksLikeInitials ? "🛒" : icon);
+};
+
+const withCategoryDisplay = (category = {}) => ({
+  ...category,
+  icon: getCategoryIcon(category),
+  accent: category.accent || categoryAccentMap[categoryKey(category.name)] || "#16a34a",
+});
+
 const mutableOrderStatuses = ["Placed", "Packing", "Out for delivery"];
 const canChangeOrder = (order) => mutableOrderStatuses.includes(order?.status);
 const safeOrderTimeline = (order) =>
@@ -228,7 +292,10 @@ function App() {
   const loadMoreRef = useRef(null);
 
   const cartCount = cart.reduce((sum, item) => sum + item.quantity, 0);
-  const categories = homeData?.categories || [];
+  const categories = useMemo(
+    () => (homeData?.categories || []).map(withCategoryDisplay),
+    [homeData?.categories]
+  );
   const currentLocation = selectedLocation || homeData?.location;
   const visibleNavItems = useMemo(
     () =>
@@ -1613,6 +1680,13 @@ function ProductGrid({
           </div>
         </article>
       ))}
+      {!loading && !products.length && (
+        <div className="emptyState productEmptyState">
+          <ShoppingBag size={38} />
+          <h3>No products match this view</h3>
+          <p>Try clearing filters, changing the category, or searching for another item.</p>
+        </div>
+      )}
     </div>
   );
 }
@@ -2202,7 +2276,7 @@ function CartDrawer({
             <h2>Your cart</h2>
             <p>{items.length} products from QuickMart Fresh</p>
           </div>
-          <button className="iconButton" onClick={close}>
+          <button className="iconButton" aria-label="Close cart" onClick={close}>
             <X />
           </button>
         </div>
@@ -2402,7 +2476,7 @@ function CheckoutModal({
             <h2>Checkout</h2>
             <p>Delivery partner will arrive in 8-12 minutes.</p>
           </div>
-          <button className="iconButton" onClick={close}>
+          <button className="iconButton" aria-label="Close checkout" onClick={close}>
             <X />
           </button>
         </div>
@@ -2527,7 +2601,7 @@ function ProductModal({ product, quantity, addToCart, updateCart, toggleWishlist
   return (
     <div className="overlay">
       <section className="productModal">
-        <button className="modalClose iconButton" onClick={close}>
+        <button className="modalClose iconButton" aria-label="Close product details" onClick={close}>
           <X />
         </button>
         <ProductImage product={product} />
@@ -2667,7 +2741,7 @@ function TrackingModal({ order, close, raiseIssue, modifyItem, updateReplacement
             <h2>Tracking #{shortOrderId(order)}</h2>
             <p>{order.deliverySlot || "Arriving soon"}</p>
           </div>
-          <button className="iconButton" onClick={close}><X /></button>
+          <button className="iconButton" aria-label="Close tracking" onClick={close}><X /></button>
         </div>
         <div className="mapMock">
           <Navigation size={38} />
@@ -2997,7 +3071,7 @@ function AddressModal({ user, login, addAddress, updateAddress, deleteAddress, s
             <h2>Delivery address</h2>
             <p>Choose GPS, a service zone, or a saved address for quick checkout.</p>
           </div>
-          <button className="iconButton" onClick={close}><X /></button>
+          <button className="iconButton" aria-label="Close address selector" onClick={close}><X /></button>
         </div>
         <div className="currentLocationCard">
           <MapPin size={18} />
@@ -3103,7 +3177,7 @@ function NotificationsModal({ user, notifications, close, markRead, login }) {
             <h2>Notifications</h2>
             <p>Order updates, offers, refunds and re-engagement alerts.</p>
           </div>
-          <button className="iconButton" onClick={close}><X /></button>
+          <button className="iconButton" aria-label="Close notifications" onClick={close}><X /></button>
         </div>
         {!user ? (
           <button className="primaryButton" onClick={login}>
@@ -3152,7 +3226,7 @@ function DeliveryRatingModal({ order, close, submit }) {
             <h2>Rate delivery</h2>
             <p>Order #{shortOrderId(order)} · Help improve delivery quality.</p>
           </div>
-          <button className="iconButton" onClick={close}><X /></button>
+          <button className="iconButton" aria-label="Close delivery rating" onClick={close}><X /></button>
         </div>
         <div className="starPicker">
           {[1, 2, 3, 4, 5].map((value) => (
@@ -3286,7 +3360,7 @@ function InvoiceModal({ invoice, close }) {
             <h2>Tax invoice</h2>
             <p>{invoice.number} · GSTIN {invoice.gstin}</p>
           </div>
-          <button className="iconButton" onClick={close}><X /></button>
+          <button className="iconButton" aria-label="Close invoice" onClick={close}><X /></button>
         </div>
         <div className="invoiceMeta">
           <div><strong>Billed to</strong><span>{invoice.billedTo?.line1 || "Customer"}, {invoice.billedTo?.area || "Bengaluru"}</span></div>
@@ -3822,6 +3896,13 @@ function OrdersView({ orders, onReorder, onTrack, onCancel, onRate, onInvoice, o
         <p>Past orders, spend insights and one-tap restock. Total spend: {currency.format(totalSpend)}.</p>
       </div>
       <div className="ordersList">
+        {!orders.length && (
+          <div className="emptyState">
+            <ReceiptText size={38} />
+            <h3>No orders yet</h3>
+            <p>Once you place an order, tracking, invoice, rating and reorder actions will show here.</p>
+          </div>
+        )}
         {orders.map((order) => (
           <article className="orderCard" key={order._id}>
             <div className="orderTop">
@@ -3997,12 +4078,17 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
   const [bulkForm, setBulkForm] = useState({ category: "", stockDelta: 0, etaMinutes: "", sponsored: false });
   const [catalogSearch, setCatalogSearch] = useState("");
   const [catalogNotice, setCatalogNotice] = useState("");
+  const [adminControlNotice, setAdminControlNotice] = useState("");
   const [adminEditor, setAdminEditor] = useState(null);
+  const displayedManagedCategories = useMemo(
+    () => managedCategories.map(withCategoryDisplay),
+    [managedCategories]
+  );
 
   const categoryOptions = useMemo(() => {
-    const names = managedCategories.map((category) => category.name);
+    const names = displayedManagedCategories.map((category) => category.name);
     return [...new Set([...names, form.category].filter(Boolean))];
-  }, [form.category, managedCategories]);
+  }, [form.category, displayedManagedCategories]);
 
   const filteredCatalogProducts = useMemo(() => {
     const term = catalogSearch.trim().toLowerCase();
@@ -4540,6 +4626,19 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
     }
   };
 
+  const refreshAdminControl = async () => {
+    setSaving("admin-refresh");
+    setAdminControlNotice("");
+    try {
+      await Promise.all([reloadAdmin(), reload(), loadAdminUsers(), loadMarketing(), loadSystem()]);
+      setAdminControlNotice("Admin control data synced just now.");
+    } catch (error) {
+      setAdminControlNotice(error.message);
+    } finally {
+      setSaving("");
+    }
+  };
+
   const adminPages = [
     { key: "overview", label: "Overview", icon: LayoutDashboard, description: "Executive command center" },
     { key: "operations", label: "Operations", icon: Truck, description: "Live orders and delivery" },
@@ -4550,7 +4649,15 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
     { key: "system", label: "System", icon: ShieldCheck, description: "Staff, partners and controls" },
   ];
   const liveOrders = summary?.liveOrders || [];
+  const activeAdminPage = adminPages.find((page) => page.key === adminPage) || adminPages[0];
+  const lowStockCount = products.filter((product) => Number(product.stock || 0) <= 10).length;
   const recentCustomers = adminUsers.slice(0, 6);
+  const adminCommandMetrics = [
+    { label: "Live orders", value: summary?.activeOrderCount || liveOrders.length || 0, tone: liveOrders.length ? "hot" : "calm" },
+    { label: "Low stock", value: lowStockCount, tone: lowStockCount ? "warn" : "calm" },
+    { label: "Customers", value: adminUsers.length || summary?.userCount || 0, tone: "calm" },
+    { label: "Zones", value: systemData.serviceZones?.length || 0, tone: "calm" },
+  ];
   const inventoryWatchlist = (
     summary?.reports?.topInventory?.length
       ? summary.reports.topInventory
@@ -4588,10 +4695,44 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
           );
         })}
       </nav>
+      <div className="adminCommandBar">
+        <div className="adminCommandTitle">
+          <span>Command center</span>
+          <strong>{activeAdminPage.label} workspace</strong>
+          <small>{activeAdminPage.description}</small>
+        </div>
+        <div className="adminCommandMetrics">
+          {adminCommandMetrics.map((metric) => (
+            <div className={`adminCommandMetric ${metric.tone}`} key={metric.label}>
+              <span>{metric.label}</span>
+              <strong>{metric.value}</strong>
+            </div>
+          ))}
+        </div>
+        <div className="adminCommandActions">
+          <button type="button" onClick={refreshAdminControl} disabled={saving === "admin-refresh"}>
+            <RotateCcw size={16} />
+            {saving === "admin-refresh" ? "Syncing" : "Sync data"}
+          </button>
+          <button type="button" onClick={() => setAdminPage("users")}>
+            <UserRound size={16} />
+            Users
+          </button>
+          <button type="button" onClick={() => setAdminPage("catalog")}>
+            <Store size={16} />
+            Catalog
+          </button>
+          <button type="button" onClick={() => setAdminPage("system")}>
+            <ShieldCheck size={16} />
+            System
+          </button>
+        </div>
+      </div>
+      {adminControlNotice && <p className="adminNotice">{adminControlNotice}</p>}
       <div className="adminPageHeader">
         <span>Admin page</span>
-        <h3>{adminPages.find((page) => page.key === adminPage)?.label}</h3>
-        <p>{adminPages.find((page) => page.key === adminPage)?.description}</p>
+        <h3>{activeAdminPage.label}</h3>
+        <p>{activeAdminPage.description}</p>
       </div>
       <div className={adminPage === "overview" ? "adminStats" : "adminStats hidden"}>
         <Stat icon={ShoppingBag} label="Products" value={summary?.productCount || products.length} />
@@ -4820,7 +4961,7 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
             Create category
           </button>
           <div className="categoryManager">
-            {managedCategories.map((category) => (
+            {displayedManagedCategories.map((category) => (
               <button key={category.name} style={{ "--accent": category.accent }} onClick={() => editCategory(category)}>
                 <span>{category.icon}</span>
                 {category.name}
@@ -4837,7 +4978,7 @@ function AdminManager({ summary, products, reload, reloadAdmin }) {
           </div>
           {catalogNotice && <p className="adminNotice">{catalogNotice}</p>}
           <div className="adminCrudList compact">
-            {managedCategories.map((category) => (
+            {displayedManagedCategories.map((category) => (
               <div className="marketingRow" key={`manage-${category.name}`}>
                 <strong>{category.icon} {category.name}</strong>
                 <span>{category.accent}</span>
@@ -5250,7 +5391,7 @@ function AdminEditModal({ title, subtitle, children, onClose, size = "" }) {
             <h2>{title}</h2>
             <p>{subtitle}</p>
           </div>
-          <button className="iconButton" type="button" onClick={onClose}><X /></button>
+          <button className="iconButton" type="button" aria-label={`Close ${title}`} onClick={onClose}><X /></button>
         </div>
         {children}
       </section>
